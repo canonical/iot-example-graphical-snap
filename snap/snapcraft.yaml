@@ -11,6 +11,7 @@ apps:
   iot-example-graphical-snap:
     command-chain: &_command-chain
       - bin/wayland-launch
+      - bin/dbus-launch
     command: &_command usr/games/bomber
     plugs: &_plugs
       - opengl
@@ -85,6 +86,17 @@ parts:
       - bomber
       - qtwayland5
 
+  # Because Bomber won't run without a session dbus, and this isn't available to daemons on core
+  # (there is no "session") we need to include a dbus session in the snap.
+  # The `source: dbus` contains a script and configuration file for running `dbus-run-session`.
+  dbus:
+    plugin: dump
+    source: dbus
+    override-prime: |
+      snapcraftctl prime
+      # replace the SNAP_NAME placeholder with our actual project name
+      sed -i "s/SNAP_NAME/$SNAPCRAFT_PROJECT_NAME/" $SNAPCRAFT_PRIME/etc/dbus-1/session.conf
+
   # Some utility scripts for setting up the Wayland environment
   wayland-launch:
     plugin: dump
@@ -105,6 +117,7 @@ parts:
     after:
       - bomber
       - wayland-launch
+      - dbus
     plugin: nil
     build-snaps: [ mesa-core20 ]
     override-prime: |
