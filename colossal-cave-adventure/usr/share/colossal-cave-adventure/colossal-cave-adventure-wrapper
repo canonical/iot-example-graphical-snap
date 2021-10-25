@@ -1,0 +1,4 @@
+#!/bin/bash -e
+echo -e '\033]2;Colossal Cave Adventure\007'
+$SNAP/usr/share/colossal-cave-adventure/colossal-cave-adventure
+read -sn1 -p "PRESS ANY KEY TO CONTINUE"
