@@ -1,11 +1,7 @@
 name: iot-example-graphical-snap  # you probably want to 'snapcraft register <name>'
 version: git # just for humans, typically '1.2+git' or '1.3.2'
-summary: Single-line elevator pitch for your amazing snap # 79 char long summary
-description: |
-  This is my-snap's description. You have a paragraph or two to tell the
-  most important story about your snap. Keep it under 100 words though,
-  we live in tweetspace and your description wants to look good in the snap
-  store.
+summary: IoT example using Flutter # 79 char long summary
+description: IoT example using Flutter
 confinement: strict
 compression: lzo
 grade: stable
@@ -15,10 +11,13 @@ apps:
   iot-example-graphical-snap:
     command-chain: &_command-chain
       - bin/wayland-launch
-    command: &_command # Command to launch your application
+    command: &_command bin/flutterdemo
     plugs: &_plugs
       - opengl
       - wayland
+    environment: &_environment
+      XDG_DATA_HOME: $SNAP_USER_DATA
+      XDG_DATA_DIRS: $SNAP/usr/share
 
   daemon:
     daemon: simple
@@ -27,6 +26,7 @@ apps:
     command-chain: *_command-chain
     command: *_command
     plugs: *_plugs
+    environment: *_environment
 
 # This is one of four snippets that relate to providing the userspace graphics needed by your application.
 # You can treat this as "magic" so long as you don't need to make changes.
@@ -68,11 +68,69 @@ layout:
     bind: $SNAP/usr/share/sounds
   /etc/fonts:
     bind: $SNAP/etc/fonts
+  # gnome-mastermind & GTK
+  /usr/lib/$SNAPCRAFT_ARCH_TRIPLET/gdk-pixbuf-2.0:
+    bind: $SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/gdk-pixbuf-2.0
+  /usr/share/mime:
+    bind: $SNAP/usr/share/mime
+  /etc/gtk-3.0:
+    bind: $SNAP/etc/gtk-3.0
 
 parts:
-  # Your application packaging goes here
+  # Flutter applications are based on GTK which needs SVG, Gsettings and GLib libraries it needs.
+  # The `build-packages`, `override-build` and `override-prime` stanzas are there to incorporate the mime database
+  # and pixbuf loaders into the snap.
+  # This setup of mime database and pixbuf loaders is done differently for IoT as the snap cannot rely on getting
+  # these from the host environment.
+  gsettings+pixbuf:
+    plugin: nil
+    build-packages:
+      - libgdk-pixbuf2.0-0
+      - librsvg2-common
+      - shared-mime-info
+    override-build: |
+      # Update mime database
+      update-mime-database ${SNAPCRAFT_PART_INSTALL}/usr/share/mime
+    stage-packages:
+      - librsvg2-common
+      - gsettings-desktop-schemas
+      - libglib2.0-bin
+    override-prime: |
+      snapcraftctl prime
+      # Compile the gsettings schemas
+      /usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/glib-2.0/glib-compile-schemas "$SNAPCRAFT_PRIME/usr/share/glib-2.0/schemas"
+      # Index the pixbuf loaders
+      LOADERS_PATH=$(echo ${SNAPCRAFT_PRIME}/usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/gdk-pixbuf-2.0/*/loaders)
+      QUERY_LOADERS=/usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/gdk-pixbuf-2.0/gdk-pixbuf-query-loaders
+      GDK_PIXBUF_MODULEDIR=${LOADERS_PATH} ${QUERY_LOADERS} > ${LOADERS_PATH}/../loaders.cache
+      sed s!$SNAPCRAFT_PRIME!!g --in-place ${LOADERS_PATH}/../loaders.cache
 
-  # Some utility scripts for setting up the Wayland environment
+  flutterdemo:
+    plugin: nil
+    source: flutterdemo
+    build-snaps:
+      - flutter/latest/stable
+    build-environment:
+      - C_INCLUDE_PATH: /snap/flutter/current/usr/include
+      - LD_LIBRARY_PATH: $LD_LIBRARY_PATH:/snap/flutter/current/usr/lib/$SNAPCRAFT_ARCH_TRIPLET
+      - PKG_CONFIG_PATH: $PKG_CONFIG_PATH:/snap/flutter/current/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/pkgconfig
+      - XDG_DATA_DIRS: /snap/flutter/current/usr/share:$XDG_DATA_DIRS
+    override-build: |
+      set -eux
+      mkdir -p $SNAPCRAFT_PART_INSTALL/bin/lib
+      flutter channel stable
+      flutter upgrade
+      flutter config --enable-linux-desktop
+      flutter doctor
+      flutter pub get
+      flutter build linux --release -v
+      cp -r build/linux/*/release/bundle/* $SNAPCRAFT_PART_INSTALL/bin/
+    stage-packages:
+      # Flutter applications are based on GTK and libgl
+      - libgtk-3-0
+      - libgl1
+
+      # Some utility scripts for setting up the Wayland environment
   wayland-launch:
     plugin: dump
     source: wayland-launch
@@ -90,7 +148,8 @@ parts:
   # This ensures that your snap doesn't contain its own copy of the userspace drivers
   cleanup:
     after:
-      # Your application packaging
+      - gsettings+pixbuf
+      - flutterdemo
       - wayland-launch
     plugin: nil
     build-snaps: [ mesa-core20 ]
@@ -102,8 +161,12 @@ parts:
       for CRUFT in bug drirc.d glvnd libdrm lintian man; do
         rm -rf "$SNAPCRAFT_PRIME/usr/share/$CRUFT"
       done
+      for CRUFT in alsa bash-completion dbus-1 help kconf_update kservices5 libinput locale openal pkgconfig \
+                   applications doc kf5 kservicetypes5 libthai metainfo perl qlogging-categories5 thumbnailers xml \
+                   apport config.kcfg doc-base GConf gnupg info knotifications5 kxmlgui5 libwacom themes sounds ; do
+        rm -rf "$SNAPCRAFT_PRIME/usr/share/$CRUFT"
+      done
 
 architectures:
   - build-on: amd64
-  - build-on: armhf
   - build-on: arm64
