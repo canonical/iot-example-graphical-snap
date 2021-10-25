@@ -1,11 +1,7 @@
 name: iot-example-graphical-snap  # you probably want to 'snapcraft register <name>'
 version: git # just for humans, typically '1.2+git' or '1.3.2'
-summary: Single-line elevator pitch for your amazing snap # 79 char long summary
-description: |
-  This is my-snap's description. You have a paragraph or two to tell the
-  most important story about your snap. Keep it under 100 words though,
-  we live in tweetspace and your description wants to look good in the snap
-  store.
+summary: IoT example using GTK3 # 79 char long summary
+description: IoT example using GTK3
 confinement: strict
 compression: lzo
 grade: stable
@@ -16,7 +12,7 @@ apps:
     command-chain: &_command-chain
       - bin/graphics-core22-wrapper
       - bin/wayland-launch
-    command: &_command # Command to launch your application
+    command: &_command usr/games/gnome-mastermind
     plugs: &_plugs
       - opengl
       - wayland
@@ -76,6 +72,9 @@ layout:
     bind: $SNAP/usr/share/mime
   /etc/gtk-3.0:
     bind: $SNAP/etc/gtk-3.0
+  # gnome-mastermind & GTK
+  /usr/share/gnome-mastermind:
+    bind: $SNAP/usr/share/gnome-mastermind
 
 parts:
   # Your application packaging goes here
@@ -97,6 +96,7 @@ parts:
       mkdir -p ${CRAFT_PART_INSTALL}/usr/lib/${CRAFT_ARCH_TRIPLET}/gtk-3.0/3.0.0/
       /usr/lib/${CRAFT_ARCH_TRIPLET}/libgtk-3-0/gtk-query-immodules-3.0 > ${CRAFT_PART_INSTALL}/usr/lib/${CRAFT_ARCH_TRIPLET}/gtk-3.0/3.0.0/immodules.cache
     stage-packages:
+      - gnome-mastermind  # mastermind needs be here to install a gsettings schema: 'org.autistici.gnome-mastermind'
       - librsvg2-common
       - gsettings-desktop-schemas
       - libglib2.0-bin
@@ -126,7 +126,6 @@ parts:
 
   graphics-core22:
     after:
-      # Your application packaging
       - gsettings+pixbuf+immodules
       - setup
     source: https://github.com/MirServer/graphics-core22.git
