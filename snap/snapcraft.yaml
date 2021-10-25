@@ -1,11 +1,7 @@
-name: iot-example-graphical-snap  # you probably want to 'snapcraft register <name>'
-version: git # just for humans, typically '1.2+git' or '1.3.2'
-summary: Single-line elevator pitch for your amazing snap # 79 char long summary
-description: |
-  This is my-snap's description. You have a paragraph or two to tell the
-  most important story about your snap. Keep it under 100 words though,
-  we live in tweetspace and your description wants to look good in the snap
-  store.
+name: iot-example-graphical-snap
+adopt-info: colossal-cave-adventure
+summary: IoT example - Colossal Cave Adventure
+description: IoT example - Colossal Cave Adventure
 confinement: strict
 compression: lzo
 grade: stable
@@ -15,10 +11,13 @@ apps:
   iot-example-graphical-snap:
     command-chain: &_command-chain
       - bin/wayland-launch
-    command: &_command # Command to launch your application
+    command: &_command usr/bin/xfce4-terminal  --hide-menubar --hide-toolbar --command $SNAP/usr/share/colossal-cave-adventure/colossal-cave-adventure-wrapper
     plugs: &_plugs
       - opengl
       - wayland
+    environment: &_environment
+      XDG_DATA_HOME: $SNAP_USER_DATA
+      XDG_DATA_DIRS: $SNAP/usr/share
 
   daemon:
     daemon: simple
@@ -27,6 +26,7 @@ apps:
     command-chain: *_command-chain
     command: *_command
     plugs: *_plugs
+    environment: *_environment
 
 # This is one of four snippets that relate to providing the userspace graphics needed by your application.
 # You can treat this as "magic" so long as you don't need to make changes.
@@ -68,9 +68,66 @@ layout:
     bind: $SNAP/usr/share/sounds
   /etc/fonts:
     bind: $SNAP/etc/fonts
+  # GTK
+  /usr/lib/$SNAPCRAFT_ARCH_TRIPLET/gdk-pixbuf-2.0:
+    bind: $SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/gdk-pixbuf-2.0
+  /usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/gtk-3.0:
+    bind: $SNAP/usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/gtk-3.0
+  /usr/share/mime:
+    bind: $SNAP/usr/share/mime
+  /etc/gtk-3.0:
+    bind: $SNAP/etc/gtk-3.0
 
 parts:
-  # Your application packaging goes here
+  colossal-cave-adventure:
+    plugin: dump
+    source: colossal-cave-adventure
+    override-pull: |
+      snapcraftctl pull
+      version=`LANG=C apt-cache policy colossal-cave-adventure | sed -rne 's/^\s+Candidate:\s+([^-]*)-.+$/\1/p'`
+      snapcraftctl set-version $version
+    stage-packages:
+      - colossal-cave-adventure
+
+  # We need a terminal-emulator
+  # This setup of mime database and pixbuf loaders is done differently for IoT as the snap cannot rely on getting
+  # these from the host environment.
+  terminal:
+    plugin: nil
+    stage-packages:
+      - xfce4-terminal
+
+  gsettings+pixbuf:
+    plugin: nil
+    build-packages:
+      - libgdk-pixbuf2.0-0
+      - librsvg2-common
+      - shared-mime-info
+    override-build: |
+      # Update mime database
+      update-mime-database ${SNAPCRAFT_PART_INSTALL}/usr/share/mime
+    stage-packages:
+      - librsvg2-common
+      - gsettings-desktop-schemas
+      - libglib2.0-bin
+    override-prime: |
+      snapcraftctl prime
+      # Compile the gsettings schemas
+      /usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/glib-2.0/glib-compile-schemas "$SNAPCRAFT_PRIME/usr/share/glib-2.0/schemas"
+      # Index the pixbuf loaders
+      LOADERS_PATH=$(echo ${SNAPCRAFT_PRIME}/usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/gdk-pixbuf-2.0/*/loaders)
+      QUERY_LOADERS=/usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/gdk-pixbuf-2.0/gdk-pixbuf-query-loaders
+      GDK_PIXBUF_MODULEDIR=${LOADERS_PATH} ${QUERY_LOADERS} > ${LOADERS_PATH}/../loaders.cache
+      sed s!$SNAPCRAFT_PRIME!!g --in-place ${LOADERS_PATH}/../loaders.cache
+
+  immodules:
+    plugin: nil
+    build-packages:
+      - libgtk-3-0
+    override-build: |
+      snapcraftctl build
+      mkdir -p ${SNAPCRAFT_PART_INSTALL}/usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/gtk-3.0/3.0.0/
+      /usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/libgtk-3-0/gtk-query-immodules-3.0 > ${SNAPCRAFT_PART_INSTALL}/usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/gtk-3.0/3.0.0/immodules.cache
 
   # Some utility scripts for setting up the Wayland environment
   wayland-launch:
@@ -90,7 +147,10 @@ parts:
   # This ensures that your snap doesn't contain its own copy of the userspace drivers
   cleanup:
     after:
-      # Your application packaging
+      - colossal-cave-adventure
+      - terminal
+      - gsettings+pixbuf
+      - immodules
       - wayland-launch
     plugin: nil
     build-snaps: [ mesa-core20 ]
@@ -99,9 +159,10 @@ parts:
       cd /snap/mesa-core20/current/egl/lib
       find . -type f,l -exec rm -f $SNAPCRAFT_PRIME/usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/{} \;
       rm -fr "$SNAPCRAFT_PRIME/usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/dri"
-      for CRUFT in bug drirc.d glvnd libdrm lintian man; do
-        rm -rf "$SNAPCRAFT_PRIME/usr/share/$CRUFT"
-      done
+      cd "$SNAPCRAFT_PRIME/usr/share/"
+      rm -rf bug drirc.d glvnd libdrm lintian man
+      rm -rf applications apport bash-completion dbus-1 doc-base doc gtk-doc\
+             help pkgconfig libthai metainfo themes thumbnailers xml
 
 architectures:
   - build-on: amd64
