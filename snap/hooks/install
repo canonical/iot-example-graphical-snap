@@ -1,0 +1,10 @@
+#!/bin/sh
+set -x
+
+if [ "$(snapctl get daemon)" = "" ]
+then
+  if grep -q -e snap_core= -e snapd_recovery_mode= /proc/cmdline
+  then snapctl set daemon=true
+  else snapctl set daemon=false
+  fi
+fi

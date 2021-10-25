@@ -1,0 +1,4 @@
+status = ["Snap"]
+delete-merged-branches = true
+block-labels = [ "no-merge" ]
+timeout-sec = 1200
