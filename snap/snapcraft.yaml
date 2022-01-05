@@ -1,11 +1,7 @@
-name: iot-example-graphical-snap  # you probably want to 'snapcraft register <name>'
+name: iot-example-graphical-snap # you probably want to 'snapcraft register <name>'
 version: git # just for humans, typically '1.2+git' or '1.3.2'
-summary: Single-line elevator pitch for your amazing snap # 79 char long summary
-description: |
-  This is my-snap's description. You have a paragraph or two to tell the
-  most important story about your snap. Keep it under 100 words though,
-  we live in tweetspace and your description wants to look good in the snap
-  store.
+summary: IoT example using Qt # 79 char long summary
+description: IoT example using Qt
 confinement: strict
 compression: lzo
 grade: stable
@@ -15,10 +11,19 @@ apps:
   iot-example-graphical-snap:
     command-chain: &_command-chain
       - bin/wayland-launch
-    command: &_command # Command to launch your application
+    command: &_command usr/games/bomber
     plugs: &_plugs
       - opengl
       - wayland
+      - audio-playback
+      - network-bind
+    environment: &_environment
+      # These environment variables are typically needed by Qt applications to ensue the snapped version of
+      # Qt components are found and used
+      QT_QPA_PLATFORM: wayland
+      QT_PLUGIN_PATH: ${SNAP}/usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/qt5/plugins/
+      QT_QPA_PLATFORM_PLUGIN_PATH: ${SNAP}/usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/qt5/plugins/platforms/
+      QML2_IMPORT_PATH: ${SNAP}/usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/qt5/qml
 
   daemon:
     daemon: simple
@@ -27,6 +32,7 @@ apps:
     command-chain: *_command-chain
     command: *_command
     plugs: *_plugs
+    environment: *_environment
 
 # This is one of four snippets that relate to providing the userspace graphics needed by your application.
 # You can treat this as "magic" so long as you don't need to make changes.
@@ -68,9 +74,16 @@ layout:
     bind: $SNAP/usr/share/sounds
   /etc/fonts:
     bind: $SNAP/etc/fonts
+  # bomber
+  /usr/share/bomber:
+    bind: $SNAP/usr/share/bomber
 
 parts:
-  # Your application packaging goes here
+  bomber:
+    plugin: nil
+    stage-packages:
+      - bomber
+      - qtwayland5
 
   # Some utility scripts for setting up the Wayland environment
   wayland-launch:
@@ -90,7 +103,7 @@ parts:
   # This ensures that your snap doesn't contain its own copy of the userspace drivers
   cleanup:
     after:
-      # Your application packaging
+      - bomber
       - wayland-launch
     plugin: nil
     build-snaps: [ mesa-core20 ]
@@ -100,6 +113,11 @@ parts:
       find . -type f,l -exec rm -f $SNAPCRAFT_PRIME/usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/{} \;
       rm -fr "$SNAPCRAFT_PRIME/usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/dri"
       for CRUFT in bug drirc.d glvnd libdrm lintian man; do
+        rm -rf "$SNAPCRAFT_PRIME/usr/share/$CRUFT"
+      done
+      for CRUFT in alsa bash-completion dbus-1 help kconf_update kservices5 libinput locale openal pkgconfig \
+                   applications doc kf5 kservicetypes5 libthai metainfo perl qlogging-categories5 thumbnailers xml \
+                   apport config.kcfg doc-base GConf gnupg info knotifications5 kxmlgui5 libwacom themes sounds ; do
         rm -rf "$SNAPCRAFT_PRIME/usr/share/$CRUFT"
       done
 
