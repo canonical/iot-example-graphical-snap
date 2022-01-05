@@ -1,24 +1,31 @@
-name: iot-example-graphical-snap  # you probably want to 'snapcraft register <name>'
+name: iot-example-graphical-snap # you probably want to 'snapcraft register <name>'
 version: git # just for humans, typically '1.2+git' or '1.3.2'
-summary: Single-line elevator pitch for your amazing snap # 79 char long summary
-description: |
-  This is my-snap's description. You have a paragraph or two to tell the
-  most important story about your snap. Keep it under 100 words though,
-  we live in tweetspace and your description wants to look good in the snap
-  store.
+summary: IoT example using Qt6 # 79 char long summary
+description: IoT example using Qt6
 confinement: strict
 compression: lzo
 grade: stable
 base: core20
 
+package-repositories:
+- type: apt
+  ppa: daschuer/qt6-backports
+
 apps:
   iot-example-graphical-snap:
     command-chain: &_command-chain
       - bin/wayland-launch
-    command: &_command # Command to launch your application
+    command: &_command usr/local/examples/quickcontrols2/gallery/gallery_controls2
     plugs: &_plugs
       - opengl
       - wayland
+    environment:
+      # These environment variables are typically needed by Qt applications to ensue the snapped version of
+      # Qt components are found and used
+      QT_QPA_PLATFORM: wayland
+      QT_PLUGIN_PATH: ${SNAP}/usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/qt6/plugins/
+      QT_QPA_PLATFORM_PLUGIN_PATH: ${SNAP}/usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/qt6/plugins/platforms/
+      QML2_IMPORT_PATH: ${SNAP}/usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/qt6/qml
 
   daemon:
     daemon: simple
@@ -70,7 +77,35 @@ layout:
     bind: $SNAP/etc/fonts
 
 parts:
-  # Your application packaging goes here
+  qtwayland:
+    source: https://download.qt.io/official_releases/qt/6.2/6.2.3/submodules/qtwayland-everywhere-src-6.2.3.tar.xz
+    plugin: cmake
+    build-packages:
+    - libvulkan-dev
+    - libwayland-dev
+    - libxkbcommon-dev
+    - qt6-base-dev
+    - qt6-base-private-dev
+    - qt6-declarative-private-dev
+    stage-packages:
+    - libwayland-cursor0
+    - libwayland-egl1
+
+  gallery:
+    source: https://download.qt.io/official_releases/qt/6.2/6.2.3/submodules/qtdeclarative-everywhere-src-6.2.3.tar.xz
+    source-subdir: examples/quickcontrols2/gallery
+    plugin: cmake
+    build-packages:
+    - libglu1-mesa-dev
+    - libqt6opengl6-dev
+    - qt6-declarative-dev
+    stage-packages:
+    - qml6-module-qt-labs-settings
+    - qml6-module-qtqml-workerscript
+    - qml6-module-qtquick-controls
+    - qml6-module-qtquick-layouts
+    - qml6-module-qtquick-templates
+    - qml6-module-qtquick-window
 
   # Some utility scripts for setting up the Wayland environment
   wayland-launch:
@@ -90,7 +125,7 @@ parts:
   # This ensures that your snap doesn't contain its own copy of the userspace drivers
   cleanup:
     after:
-      # Your application packaging
+      - gallery
       - wayland-launch
     plugin: nil
     build-snaps: [ mesa-core20 ]
@@ -100,6 +135,9 @@ parts:
       find . -type f,l -exec rm -f $SNAPCRAFT_PRIME/usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/{} \;
       rm -fr "$SNAPCRAFT_PRIME/usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/dri"
       for CRUFT in bug drirc.d glvnd libdrm lintian man; do
+        rm -rf "$SNAPCRAFT_PRIME/usr/share/$CRUFT"
+      done
+      for CRUFT in apport doc doc-base fonts pkgconfig xml ; do
         rm -rf "$SNAPCRAFT_PRIME/usr/share/$CRUFT"
       done
 
