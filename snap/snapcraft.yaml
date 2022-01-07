@@ -18,6 +18,7 @@ apps:
     environment: &_environment
       XDG_DATA_HOME: $SNAP_USER_DATA
       XDG_DATA_DIRS: $SNAP/usr/share
+      GDK_GL: gles
 
   daemon:
     daemon: simple
