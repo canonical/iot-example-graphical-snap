@@ -1,11 +1,7 @@
 name: iot-example-graphical-snap  # you probably want to 'snapcraft register <name>'
 version: git # just for humans, typically '1.2+git' or '1.3.2'
-summary: Single-line elevator pitch for your amazing snap # 79 char long summary
-description: |
-  This is my-snap's description. You have a paragraph or two to tell the
-  most important story about your snap. Keep it under 100 words though,
-  we live in tweetspace and your description wants to look good in the snap
-  store.
+summary: IoT example using GLMark2 # 79 char long summary
+description: IoT example using GLMark2
 confinement: strict
 compression: lzo
 grade: stable
@@ -15,7 +11,7 @@ apps:
   iot-example-graphical-snap:
     command-chain: &_command-chain
       - bin/wayland-launch
-    command: &_command # Command to launch your application
+    command: &_command usr/bin/glmark2-wayland --annotate --fullscreen --run-forever
     plugs: &_plugs
       - opengl
       - wayland
@@ -68,9 +64,17 @@ layout:
     bind: $SNAP/usr/share/sounds
   /etc/fonts:
     bind: $SNAP/etc/fonts
+  # GLMark2
+  /usr/share/glmark2:
+    bind: $SNAP/usr/share/glmark2
 
 parts:
-  # Your application packaging goes here
+  glmark2:
+    plugin: nil
+    stage-packages:
+      - fonts-freefont-ttf
+      - glmark2-data
+      - glmark2-wayland
 
   # Some utility scripts for setting up the Wayland environment
   wayland-launch:
@@ -90,7 +94,7 @@ parts:
   # This ensures that your snap doesn't contain its own copy of the userspace drivers
   cleanup:
     after:
-      # Your application packaging
+      - glmark2
       - wayland-launch
     plugin: nil
     build-snaps: [ mesa-core20 ]
