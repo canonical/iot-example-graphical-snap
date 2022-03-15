@@ -72,6 +72,8 @@ layout:
   # gnome-mastermind & GTK
   /usr/lib/$SNAPCRAFT_ARCH_TRIPLET/gdk-pixbuf-2.0:
     bind: $SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/gdk-pixbuf-2.0
+  /usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/gtk-3.0:
+    bind: $SNAP/usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/gtk-3.0
   /usr/share/mime:
     bind: $SNAP/usr/share/mime
   /etc/gtk-3.0:
@@ -132,6 +134,16 @@ parts:
       - libgl1
 
       # Some utility scripts for setting up the Wayland environment
+  immodules:
+    plugin: nil
+    build-packages:
+      - libgtk-3-0
+    override-build: |
+      snapcraftctl build
+      mkdir -p ${SNAPCRAFT_PART_INSTALL}/usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/gtk-3.0/3.0.0/
+      /usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/libgtk-3-0/gtk-query-immodules-3.0 > ${SNAPCRAFT_PART_INSTALL}/usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/gtk-3.0/3.0.0/immodules.cache
+
+  # Some utility scripts for setting up the Wayland environment
   wayland-launch:
     plugin: dump
     source: wayland-launch
@@ -151,6 +163,7 @@ parts:
     after:
       - gsettings+pixbuf
       - flutterdemo
+      - immodules
       - wayland-launch
     plugin: nil
     build-snaps: [ mesa-core20 ]
