@@ -20,6 +20,9 @@ apps:
     plugs: &_plugs
       - opengl
       - wayland
+    environment:
+      XDG_DATA_HOME: $SNAP_USER_DATA
+      XDG_DATA_DIRS: $SNAP/usr/share
 
   daemon:
     daemon: simple
@@ -69,9 +72,50 @@ layout:
     bind: $SNAP/usr/share/sounds
   /etc/fonts:
     bind: $SNAP/etc/fonts
+  # GTK
+  /usr/lib/$SNAPCRAFT_ARCH_TRIPLET/gdk-pixbuf-2.0:
+    bind: $SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/gdk-pixbuf-2.0
+  /usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/gtk-3.0:
+    bind: $SNAP/usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/gtk-3.0
+  /usr/share/mime:
+    bind: $SNAP/usr/share/mime
+  /etc/gtk-3.0:
+    bind: $SNAP/etc/gtk-3.0
 
 parts:
   # Your application packaging goes here
+
+  gsettings+pixbuf:
+    plugin: nil
+    build-packages:
+      - libgdk-pixbuf2.0-0
+      - librsvg2-common
+      - shared-mime-info
+    override-build: |
+      # Update mime database
+      update-mime-database ${SNAPCRAFT_PART_INSTALL}/usr/share/mime
+    stage-packages:
+      - librsvg2-common
+      - gsettings-desktop-schemas
+      - libglib2.0-bin
+    override-prime: |
+      snapcraftctl prime
+      # Compile the gsettings schemas
+      /usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/glib-2.0/glib-compile-schemas "$SNAPCRAFT_PRIME/usr/share/glib-2.0/schemas"
+      # Index the pixbuf loaders
+      LOADERS_PATH=$(echo ${SNAPCRAFT_PRIME}/usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/gdk-pixbuf-2.0/*/loaders)
+      QUERY_LOADERS=/usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/gdk-pixbuf-2.0/gdk-pixbuf-query-loaders
+      GDK_PIXBUF_MODULEDIR=${LOADERS_PATH} ${QUERY_LOADERS} > ${LOADERS_PATH}/../loaders.cache
+      sed s!$SNAPCRAFT_PRIME!!g --in-place ${LOADERS_PATH}/../loaders.cache
+
+  immodules:
+    plugin: nil
+    build-packages:
+      - libgtk-3-0
+    override-build: |
+      snapcraftctl build
+      mkdir -p ${SNAPCRAFT_PART_INSTALL}/usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/gtk-3.0/3.0.0/
+      /usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/libgtk-3-0/gtk-query-immodules-3.0 > ${SNAPCRAFT_PART_INSTALL}/usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/gtk-3.0/3.0.0/immodules.cache
 
   # Because Bomber won't run without a session dbus, and this isn't available to daemons on core
   # (there is no "session") we need to include a dbus session in the snap.
@@ -105,6 +149,8 @@ parts:
       # Your application packaging
       - wayland-launch
       - dbus
+      - gsettings+pixbuf
+      - immodules
     plugin: nil
     build-snaps: [ mesa-core20 ]
     override-prime: |
@@ -112,9 +158,10 @@ parts:
       cd /snap/mesa-core20/current/egl/lib
       find . -type f,l -exec rm -f $SNAPCRAFT_PRIME/usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/{} \;
       rm -fr "$SNAPCRAFT_PRIME/usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/dri"
-      for CRUFT in bug drirc.d glvnd libdrm lintian man; do
-        rm -rf "$SNAPCRAFT_PRIME/usr/share/$CRUFT"
-      done
+      cd "$SNAPCRAFT_PRIME/usr/share/"
+      rm -rf bug drirc.d glvnd libdrm lintian man
+      rm -rf applications apport bash-completion dbus-1 doc-base doc gtk-doc\
+             help pkgconfig libthai metainfo themes thumbnailers xml
 
 architectures:
   - build-on: amd64
