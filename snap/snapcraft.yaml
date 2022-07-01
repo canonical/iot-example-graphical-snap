@@ -97,6 +97,7 @@ parts:
       fi
 
       npm install --unsafe-perm true electron-packager
+      cp $SNAPCRAFT_PROJECT_DIR/electron/main.js .
       electron-packager . --overwrite --platform=linux \
           --output=release-build --prune=true
       cp -a ./electron-quick-start-linux-* $SNAPCRAFT_PART_INSTALL/electron-helloworld
