@@ -41,7 +41,7 @@ plugs:
 
 environment:
   # This is one of four snippets that relate to providing the userspace graphics needed by your application.
-  LD_LIBRARY_PATH:    $SNAP/graphics/lib
+  LD_LIBRARY_PATH:    $SNAP/graphics/lib:$SNAP/usr/lib/aarch64-linux-gnu/pulseaudio
   LIBGL_DRIVERS_PATH: $SNAP/graphics/dri
   LIBVA_DRIVERS_PATH: $SNAP/graphics/dri
   __EGL_VENDOR_LIBRARY_DIRS: $SNAP/graphics/glvnd/egl_vendor.d
@@ -110,6 +110,7 @@ parts:
       - libcups2
       - libgtk-3-0
       - libasound2
+      - libpulse0
     build-snaps:
       - node/16/stable
 
