@@ -109,6 +109,7 @@ parts:
       electron-packager . --overwrite --platform=linux \
           --output=release-build --prune=true
       cp -a ./electron-quick-start-linux-* $SNAPCRAFT_PART_INSTALL/electron-helloworld
+      chmod a+rx $SNAPCRAFT_PART_INSTALL/electron-helloworld
     stage-packages:
       - libnspr4
       - libnss3
