@@ -19,13 +19,18 @@ fi
 wait_for()
 {
   until
-    inotifywait --event create "$(dirname "$1")"&
-    inotify_pid=$!
+    until
+      inotifywait --event create "$(dirname "$1")"&
+      inotify_pid=$!
+      [ -e "$1" ]
+    do
+      wait "${inotify_pid}"
+    done
+    kill "${inotify_pid}"
     [ -O "$1" ]
   do
-    wait "${inotify_pid}"
+    sleep 1
   done
-  kill "${inotify_pid}"
 }
 
 real_xdg_runtime_dir=$(dirname "${XDG_RUNTIME_DIR}")
