@@ -13,14 +13,20 @@ base: core20
 
 apps:
   iot-example-graphical-snap:
-    command-chain:
+    command-chain: &_command-chain
       - bin/wayland-launch
-    command: # Command to launch your application
-    daemon: simple
-    restart-condition: always
-    plugs:
+    command: &_command # Command to launch your application
+    plugs: &_plugs
       - opengl
       - wayland
+
+  daemon:
+    daemon: simple
+    restart-delay: 3s
+    restart-condition: always
+    command-chain: *_command-chain
+    command: *_command
+    plugs: *_plugs
 
 # This is one of four snippets that relate to providing the userspace graphics needed by your application.
 # You can treat this as "magic" so long as you don't need to make changes.
