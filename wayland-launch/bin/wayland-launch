@@ -20,9 +20,9 @@ wait_for()
 {
   until
     until
-      inotifywait --event create "$(dirname "$1")"&
+      inotifywait --event create "$(dirname "$1")" --include "$(basename "$1")"&
       inotify_pid=$!
-      [ -e "$1" ]
+      [ -e "$1" ] || sleep 2 && [ -e "$1" ]
     do
       wait "${inotify_pid}"
     done
