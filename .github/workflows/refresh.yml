@@ -4,6 +4,8 @@ on:
   push:
     branches:
     - main
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
 
 jobs:
   Refresh:
@@ -30,7 +32,7 @@ jobs:
     - name: Check out code
       uses: actions/checkout@v3
       with:
-        # check out the branch we're updating
+        # check out the target branch
         ref: ${{ matrix.branch }}
         # we need all the history to rebase
         fetch-depth: 0
@@ -42,6 +44,10 @@ jobs:
         GIT_COMMITTER_NAME: "Mir CI Bot"
         GIT_COMMITTER_EMAIL: "mir-ci-bot@canonical.com"
       run: |
-        git fetch origin main
-        git rebase origin/main
+        git fetch origin ${{ github.event_name == 'pull_request' && github.base_ref || github.ref }}
+        git rebase FETCH_HEAD
+
+    - name: Push upstream
+      if: ${{ github.event_name == 'push' }}
+      run: |
         git push --force origin ${{ matrix.branch }}
