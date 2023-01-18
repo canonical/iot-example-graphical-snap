@@ -20,6 +20,7 @@ jobs:
         - GTK3-adventure
         - GTK3-mastermind
         - Qt5-bomber
+        - Qt5-bomber-first-try
         - Qt6-example
         - SDL2-neverputt
         - native-glmark2
