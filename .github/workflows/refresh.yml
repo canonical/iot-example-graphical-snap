@@ -54,6 +54,25 @@ jobs:
     - name: Build the snap
       uses: canonical/actions/build-snap@release
 
+    - name: Install prerequisites
+      run: |
+        sudo apt-get --yes install coreutils xvfb
+        sudo snap install ubuntu-frame
+        sudo snap install --classic frame-it
+
+    - name: Install the built snap and set it up
+      run: |
+        sudo snap install --dangerous ./iot-example-graphical-snap*.snap
+        /snap/iot-example-graphical-snap/current/bin/setup.sh
+
+    - name: Test that it runs
+      run: |
+        RET=0
+        timeout --kill-after=5 30 xvfb-run frame-it iot-example-graphical-snap || RET=$?
+
+        # `timeout` returns 124 on timeout, and that's what we're expecting
+        [ "$RET" == 124 ] || exit 1
+
     - name: Push upstream
       if: ${{ github.event_name == 'push' }}
       run: |
