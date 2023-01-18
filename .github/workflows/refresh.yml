@@ -1,0 +1,46 @@
+name: Refresh examples
+
+on:
+  push:
+    branches:
+    - main
+
+jobs:
+  Refresh:
+    runs-on: ubuntu-latest
+
+    timeout-minutes: 5
+
+    strategy:
+      fail-fast: false
+      matrix:
+        branch:
+        - Electron-quick-start
+        - Flutter-demo
+        - GTK3-adventure
+        - GTK3-mastermind
+        - Qt5-bomber
+        - Qt6-example
+        - SDL2-neverputt
+        - native-glmark2
+        - x11-glxgears
+
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v3
+      with:
+        # check out the branch we're updating
+        ref: ${{ matrix.branch }}
+        # we need all the history to rebase
+        fetch-depth: 0
+
+    - name: Update ${{ matrix.branch }}
+      env:
+        GIT_AUTHOR_NAME: "Mir CI Bot"
+        GIT_AUTHOR_EMAIL: "mir-ci-bot@canonical.com"
+        GIT_COMMITTER_NAME: "Mir CI Bot"
+        GIT_COMMITTER_EMAIL: "mir-ci-bot@canonical.com"
+      run: |
+        git fetch origin main
+        git rebase origin/main
+        git push --force origin ${{ matrix.branch }}
