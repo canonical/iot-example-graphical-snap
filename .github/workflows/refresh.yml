@@ -21,7 +21,6 @@ jobs:
         - Flutter-demo
         - GTK3-adventure
         - GTK3-mastermind
-        - Qt5-bomber
         - Qt5-bomber-first-try
         - Qt6-example
         - SDL2-neverputt
@@ -46,6 +45,11 @@ jobs:
       run: |
         git fetch origin ${{ github.event_name == 'pull_request' && github.base_ref || github.ref }}
         git rebase FETCH_HEAD
+        if ${{ matrix.branch == 'Qt5-bomber-first-try' }}; then
+          # there's a "second stage" here
+          git checkout Qt5-bomber
+          git rebase Qt5-bomber-first-try
+        fi
 
     - name: Build the snap
       uses: canonical/actions/build-snap@release
@@ -54,3 +58,6 @@ jobs:
       if: ${{ github.event_name == 'push' }}
       run: |
         git push --force origin ${{ matrix.branch }}
+        if ${{ matrix.branch == 'Qt5-bomber-first-try' }}; then
+          git push --force origin Qt5-bomber
+        fi
