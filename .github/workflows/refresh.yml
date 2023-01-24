@@ -17,7 +17,6 @@ jobs:
       fail-fast: false
       matrix:
         branch:
-        - Electron-quick-start
         - Flutter-demo
         - GTK3-adventure
         - GTK3-mastermind
@@ -26,6 +25,10 @@ jobs:
         - SDL2-neverputt
         - native-glmark2
         - x11-glxgears
+        review: true
+        include:
+        - branch: Electron-quick-start
+          review: false
 
     steps:
     - name: Check out code
@@ -53,6 +56,8 @@ jobs:
 
     - name: Build the snap
       uses: canonical/actions/build-snap@release
+      with:
+        review: ${{ matrix.review }}
 
     - name: Install prerequisites
       run: |
