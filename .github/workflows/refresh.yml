@@ -20,15 +20,17 @@ jobs:
         - Flutter-demo
         - GTK3-adventure
         - GTK3-mastermind
-        - Qt5-bomber-first-try
         - Qt6-example
         - SDL2-neverputt
         - native-glmark2
         - x11-glxgears
-        review: true
+        review:
+        - true
         include:
         - branch: Electron-quick-start
           review: false
+        - branch: Qt5-bomber-first-try
+          downstream: Qt5-bomber
 
     steps:
     - name: Check out code
@@ -48,10 +50,10 @@ jobs:
       run: |
         git fetch origin ${{ github.event_name == 'pull_request' && github.base_ref || github.ref }}
         git rebase FETCH_HEAD
-        if ${{ matrix.branch == 'Qt5-bomber-first-try' }}; then
+        if [ -n "${{ matrix.downstream }}" ]; then
           # there's a "second stage" here
-          git checkout Qt5-bomber
-          git rebase Qt5-bomber-first-try
+          git checkout ${{ matrix.downstream }}
+          git rebase ${{ matrix.branch }}
         fi
 
     - name: Build the snap
@@ -82,6 +84,6 @@ jobs:
       if: ${{ github.event_name == 'push' }}
       run: |
         git push --force origin ${{ matrix.branch }}
-        if ${{ matrix.branch == 'Qt5-bomber-first-try' }}; then
-          git push --force origin Qt5-bomber
+        if [ -n "${{ matrix.downstream }}" ]; then
+          git push --force origin ${{ matrix.downstream }}
         fi
