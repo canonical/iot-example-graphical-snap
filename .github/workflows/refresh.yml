@@ -1,0 +1,89 @@
+name: Refresh examples
+
+on:
+  push:
+    branches:
+    - main
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+jobs:
+  Refresh:
+    runs-on: ubuntu-latest
+
+    timeout-minutes: 45
+
+    strategy:
+      fail-fast: false
+      matrix:
+        branch:
+        - Flutter-demo
+        - GTK3-adventure
+        - GTK3-mastermind
+        - Qt6-example
+        - SDL2-neverputt
+        - native-glmark2
+        - x11-glxgears
+        review:
+        - true
+        include:
+        - branch: Electron-quick-start
+          review: false
+        - branch: Qt5-bomber-first-try
+          downstream: Qt5-bomber
+
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v3
+      with:
+        # check out the target branch
+        ref: ${{ matrix.branch }}
+        # we need all the history to rebase
+        fetch-depth: 0
+
+    - name: Update ${{ matrix.branch }}
+      env:
+        GIT_AUTHOR_NAME: "Mir CI Bot"
+        GIT_AUTHOR_EMAIL: "mir-ci-bot@canonical.com"
+        GIT_COMMITTER_NAME: "Mir CI Bot"
+        GIT_COMMITTER_EMAIL: "mir-ci-bot@canonical.com"
+      run: |
+        git fetch origin ${{ github.event_name == 'pull_request' && github.base_ref || github.ref }}
+        git rebase FETCH_HEAD
+        if [ -n "${{ matrix.downstream }}" ]; then
+          # there's a "second stage" here
+          git checkout ${{ matrix.downstream }}
+          git rebase ${{ matrix.branch }}
+        fi
+
+    - name: Build the snap
+      uses: canonical/actions/build-snap@release
+      with:
+        review: ${{ matrix.review }}
+
+    - name: Install prerequisites
+      run: |
+        sudo apt-get --yes install coreutils xvfb
+        sudo snap install ubuntu-frame
+        sudo snap install --classic frame-it
+
+    - name: Install the built snap and set it up
+      run: |
+        sudo snap install --dangerous ./iot-example-graphical-snap*.snap
+        /snap/iot-example-graphical-snap/current/bin/setup.sh
+
+    - name: Test that it runs
+      run: |
+        RET=0
+        timeout --kill-after=5 30 xvfb-run frame-it iot-example-graphical-snap || RET=$?
+
+        # `timeout` returns 124 on timeout, and that's what we're expecting
+        [ "$RET" == 124 ] || exit 1
+
+    - name: Push upstream
+      if: ${{ github.event_name == 'push' }}
+      run: |
+        git push --force origin ${{ matrix.branch }}
+        if [ -n "${{ matrix.downstream }}" ]; then
+          git push --force origin ${{ matrix.downstream }}
+        fi
