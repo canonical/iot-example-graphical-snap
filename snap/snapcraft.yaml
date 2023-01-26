@@ -1,11 +1,7 @@
 name: iot-example-graphical-snap  # you probably want to 'snapcraft register <name>'
 version: git # just for humans, typically '1.2+git' or '1.3.2'
-summary: Single-line elevator pitch for your amazing snap # 79 char long summary
-description: |
-  This is my-snap's description. You have a paragraph or two to tell the
-  most important story about your snap. Keep it under 100 words though,
-  we live in tweetspace and your description wants to look good in the snap
-  store.
+summary: IoT example using Wine # 79 char long summary
+description: IoT example using Wine
 confinement: strict
 compression: lzo
 grade: stable
@@ -14,11 +10,15 @@ base: core20
 apps:
   iot-example-graphical-snap:
     command-chain: &_command-chain
-      - bin/wayland-launch
-    command: &_command # Command to launch your application
+      - env-setup
+    command: &_command usr/local/bin/x11_kiosk_launch $SNAP/bin/sommelier run-exe
     plugs: &_plugs
       - opengl
       - wayland
+      - network-bind   # For Mir (to serve X11)
+    environment: &_environment
+      LANG: en_US
+      RUN_EXE: $SNAP/DNSBench.exe
 
   daemon:
     daemon: simple
@@ -27,6 +27,7 @@ apps:
     command-chain: *_command-chain
     command: *_command
     plugs: *_plugs
+    environment: *_environment
 
 # This is one of four snippets that relate to providing the userspace graphics needed by your application.
 # You can treat this as "magic" so long as you don't need to make changes.
@@ -36,6 +37,14 @@ plugs:
     interface: content
     target: $SNAP/graphics
     default-provider: mesa-core20
+  wine-runtime-c20:
+    interface: content
+    target: $SNAP/wine-runtime
+    default-provider: wine-platform-runtime-core20
+  wine-7-stable:
+    interface: content
+    target: $SNAP/wine-platform
+    default-provider: wine-platform-7-stable-core20
 
 environment:
   # This is one of four snippets that relate to providing the userspace graphics needed by your application.
@@ -50,6 +59,8 @@ environment:
   XDG_CONFIG_DIRS: $SNAP/etc/xdg
   # XKB config
   XKB_CONFIG_ROOT: $SNAP/usr/share/X11/xkb
+  WINEDLLOVERRIDES: "$WINEDLLOVERRIDES;mscoree,mshtml="    # Prevent pop-ups about Wine Mono and Wine Gecko
+
 
 # The `layout` ensures that files can be found by applications where they are expected by the toolkit or application.
 layout:
@@ -68,30 +79,43 @@ layout:
     bind: $SNAP/usr/share/sounds
   /etc/fonts:
     bind: $SNAP/etc/fonts
+  # X11
+  /usr/bin/xkbcomp:
+    symlink: $SNAP/usr/bin/xkbcomp
+  /usr/share/X11:
+    bind: $SNAP/usr/share/X11
 
 parts:
-  # Your application packaging goes here
+  sommelier-core:
+    plugin: make
+    source: https://github.com/snapcrafters/sommelier-core.git
+    source-branch: "1.0"
+    stage-snaps: [mir-kiosk-x11] # This adds an X server based on Xwayland
+    prime:
+      - -hacks/setup-gl # Don't use the gl setup from mir-kiosk-x11, we use graphics-core20
 
-  # Some utility scripts for setting up the Wayland environment
-  wayland-launch:
-    plugin: dump
-    source: wayland-launch
+  dnsbench:
+    plugin: nil
+    build-packages:
+      - curl
+    override-pull: |
+      curl \
+        --location \
+        --remote-name \
+        https://www.grc.com/files/DNSBench.exe
+
+
     override-build: |
-      # The plugs needed to run Wayland. (wayland-launch checks them, setup.sh connects them)
-      # You may add further plugs here if you want these options
-      PLUGS="opengl wayland graphics-core20"
-      sed --in-place "s/%PLUGS%/$PLUGS/g" $SNAPCRAFT_PART_BUILD/bin/wayland-launch
-      sed --in-place "s/%PLUGS%/$PLUGS/g" $SNAPCRAFT_PART_BUILD/bin/setup.sh
-      snapcraftctl build
-    stage-packages:
-      - inotify-tools
+      install \
+      --mode 0644 \
+      --verbose \
+      DNSBench.exe \
+      "${SNAPCRAFT_PART_INSTALL}"/DNSBench.exe
 
   # This is one of four snippets that relate to providing the userspace graphics needed by your application.
   # This ensures that your snap doesn't contain its own copy of the userspace drivers
   cleanup:
-    after:
-      # Your application packaging
-      - wayland-launch
+    after: [ sommelier-core ]
     plugin: nil
     build-snaps: [ mesa-core20 ]
     override-prime: |
@@ -105,5 +129,3 @@ parts:
 
 architectures:
   - build-on: amd64
-  - build-on: armhf
-  - build-on: arm64
