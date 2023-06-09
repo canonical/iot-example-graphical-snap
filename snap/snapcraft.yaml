@@ -79,7 +79,7 @@ layout:
     bind: $SNAP/etc/gtk-3.0
 
 parts:
-  # Applications are installed from repositories (such as the Ubuntu Archive) are controlled using `stage-packages:`
+  # Applications installed from repositories (such as the Ubuntu Archive) are controlled using `stage-packages:`
   # which lists the gnome-mastermind package and the SVG, Gsettings and GLib libraries it needs.
   # The `build-packages`, `override-build` and `override-prime` stanzas are there to incorporate the mime database
   # and pixbuf loaders into the snap.
