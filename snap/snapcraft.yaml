@@ -9,16 +9,20 @@ description: |
 confinement: strict
 compression: lzo
 grade: stable
-base: core20
+base: core22
 
 apps:
   iot-example-graphical-snap:
     command-chain: &_command-chain
+      - bin/graphics-core22-wrapper
       - bin/wayland-launch
     command: &_command # Command to launch your application
     plugs: &_plugs
       - opengl
       - wayland
+    environment: &_environment
+      XDG_DATA_HOME: $SNAP_USER_DATA
+      XDG_DATA_DIRS: $SNAP/usr/share
 
   daemon:
     daemon: simple
@@ -27,81 +31,66 @@ apps:
     command-chain: *_command-chain
     command: *_command
     plugs: *_plugs
+    environment: *_environment
 
 # This is one of four snippets that relate to providing the userspace graphics needed by your application.
 # You can treat this as "magic" so long as you don't need to make changes.
-# On the Mir discourse forum there's a lot more detail on [the graphics-core20 Snap interface](https://discourse.ubuntu.com/t/the-graphics-core20-snap-interface/23000) and it's use.
+# On the Mir website there's a lot more detail on [the graphics-core22 Snap interface](https://mir-server.io/docs/the-graphics-core22-snap-interface) and it's use.
 plugs:
-  graphics-core20:
+  graphics-core22:
     interface: content
     target: $SNAP/graphics
-    default-provider: mesa-core20
+    default-provider: mesa-core22
 
 environment:
-  # This is one of four snippets that relate to providing the userspace graphics needed by your application.
-  LD_LIBRARY_PATH:    $SNAP/graphics/lib
-  LIBGL_DRIVERS_PATH: $SNAP/graphics/dri
-  LIBVA_DRIVERS_PATH: $SNAP/graphics/dri
-  __EGL_VENDOR_LIBRARY_DIRS: $SNAP/graphics/glvnd/egl_vendor.d
   # Other, generally useful environment settings...
   # XDG config
   XDG_CACHE_HOME:  $SNAP_USER_COMMON/.cache
   XDG_CONFIG_HOME: $SNAP_USER_DATA/.config
   XDG_CONFIG_DIRS: $SNAP/etc/xdg
+  XDG_DATA_DIRS:   $SNAP/usr/local/share:$SNAP/usr/share
   # XKB config
   XKB_CONFIG_ROOT: $SNAP/usr/share/X11/xkb
 
 # The `layout` ensures that files can be found by applications where they are expected by the toolkit or application.
 layout:
-  # This is one of four snippets that relate to providing the userspace graphics needed by your application.
-  # These paths (/usr/share/libdrm and /usr/share/drirc.d) are hardcoded in mesa.
-  /usr/share/libdrm:  # Needed by mesa-core20 on AMD GPUs
+  /usr/share/libdrm:
     bind: $SNAP/graphics/libdrm
-  /usr/share/drirc.d:  # Used by mesa-core20 for app specific workarounds
-    bind: $SNAP/graphics/drirc.d
-  # Other, generally useful paths
-  /usr/share/fonts:
-    bind: $SNAP/usr/share/fonts
-  /usr/share/icons:
-    bind: $SNAP/usr/share/icons
-  /usr/share/sounds:
-    bind: $SNAP/usr/share/sounds
-  /etc/fonts:
-    bind: $SNAP/etc/fonts
+  /usr/share/drirc.d:
+    symlink: $SNAP/graphics/drirc.d
 
 parts:
   # Your application packaging goes here
 
   # Some utility scripts for setting up the Wayland environment
-  wayland-launch:
+  setup:
     plugin: dump
     source: wayland-launch
     override-build: |
       # The plugs needed to run Wayland. (wayland-launch checks them, setup.sh connects them)
       # You may add further plugs here if you want these options
-      PLUGS="opengl wayland graphics-core20"
-      sed --in-place "s/%PLUGS%/$PLUGS/g" $SNAPCRAFT_PART_BUILD/bin/wayland-launch
-      sed --in-place "s/%PLUGS%/$PLUGS/g" $SNAPCRAFT_PART_BUILD/bin/setup.sh
-      snapcraftctl build
+      PLUGS="opengl wayland graphics-core22"
+      sed --in-place "s/%PLUGS%/$PLUGS/g" $CRAFT_PART_BUILD/bin/wayland-launch
+      sed --in-place "s/%PLUGS%/$PLUGS/g" $CRAFT_PART_BUILD/bin/setup.sh
+      craftctl default
     stage-packages:
       - inotify-tools
 
-  # This is one of four snippets that relate to providing the userspace graphics needed by your application.
-  # This ensures that your snap doesn't contain its own copy of the userspace drivers
-  cleanup:
+  graphics-core22:
     after:
       # Your application packaging
-      - wayland-launch
-    plugin: nil
-    build-snaps: [ mesa-core20 ]
+      - setup
+    source: https://github.com/MirServer/graphics-core22.git
+    plugin: dump
     override-prime: |
-      set -eux
-      cd /snap/mesa-core20/current/egl/lib
-      find . -type f,l -exec rm -f $SNAPCRAFT_PRIME/usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/{} \;
-      rm -fr "$SNAPCRAFT_PRIME/usr/lib/${SNAPCRAFT_ARCH_TRIPLET}/dri"
-      for CRUFT in bug drirc.d glvnd libdrm lintian man; do
-        rm -rf "$SNAPCRAFT_PRIME/usr/share/$CRUFT"
-      done
+      craftctl default
+      ${CRAFT_PART_SRC}/bin/graphics-core22-cleanup mesa-core22 nvidia-core22
+      cd "$CRAFT_PRIME/usr/share/"
+      rm -rf bug drirc.d glvnd libdrm lintian man
+      rm -rf applications apport bash-completion dbus-1 doc-base doc gtk-doc\
+             help pkgconfig libthai metainfo themes thumbnailers xml
+    prime:
+      - bin/graphics-core22-wrapper
 
 architectures:
   - build-on: amd64
