@@ -18,3 +18,7 @@ case "$daemon" in
     exit 1
     ;;
 esac
+
+[ -n "$(snapctl get url)" ] || snapctl set url="https://www.electronjs.org/"
+
+snapctl restart $SNAP_INSTANCE_NAME
