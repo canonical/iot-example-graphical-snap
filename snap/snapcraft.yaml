@@ -1,11 +1,7 @@
 name: iot-example-graphical-snap  # you probably want to 'snapcraft register <name>'
 version: git # just for humans, typically '1.2+git' or '1.3.2'
-summary: Single-line elevator pitch for your amazing snap # 79 char long summary
-description: |
-  This is my-snap's description. You have a paragraph or two to tell the
-  most important story about your snap. Keep it under 100 words though,
-  we live in tweetspace and your description wants to look good in the snap
-  store.
+summary: IoT example using Flutter # 79 char long summary
+description: IoT example using Flutter
 confinement: strict
 compression: lzo
 grade: stable
@@ -18,13 +14,14 @@ apps:
     extensions: [gpu]
     command-chain: &_command-chain
       - bin/wayland-launch
-    command: &_command # Command to launch your application
+    command: &_command bin/flutterdemo
     plugs: &_plugs
       - opengl
       - wayland
     environment: &_environment
       XDG_DATA_HOME: $SNAP_USER_DATA
       XDG_DATA_DIRS: $SNAP/usr/share
+      GDK_GL: gles
 
   daemon:
     extensions: [gpu]
@@ -68,7 +65,31 @@ layout:
     bind: $SNAP/etc/gtk-3.0
 
 parts:
-  # Your application packaging goes here
+  flutterdemo:
+    plugin: nil
+    source: flutterdemo
+    build-snaps:
+      - flutter/latest/stable
+    build-environment:
+      - C_INCLUDE_PATH: /snap/flutter/current/usr/include
+      - LD_LIBRARY_PATH: ${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}/snap/flutter/current/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
+      - PKG_CONFIG_PATH: ${PKG_CONFIG_PATH:+$PKG_CONFIG_PATH:}/snap/flutter/current/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig
+      - XDG_DATA_DIRS: /snap/flutter/current/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}
+    override-build: |
+      set -eux
+      mkdir -p $CRAFT_PART_INSTALL/bin/lib
+      flutter channel stable
+      flutter upgrade
+      flutter config --enable-linux-desktop
+      flutter doctor
+      flutter pub get
+      flutter build linux --release -v
+      cp -r build/linux/*/release/bundle/* $CRAFT_PART_INSTALL/bin/
+    stage-packages:
+      # Flutter applications are based on GTK and libgl
+      - libgtk-3-0t64
+      - libgl1
+      - xkb-data
 
   # gsettings, pixbuf and immodules are not needed by all snaps,
   # but they are so common a requirement include them here
@@ -96,7 +117,7 @@ parts:
       /usr/lib/${CRAFT_ARCH_TRIPLET_BUILD_FOR}/glib-2.0/glib-compile-schemas "$CRAFT_PRIME/usr/share/glib-2.0/schemas"
       # Index the pixbuf loaders
       LOADERS_PATH=$(echo ${CRAFT_PRIME}/usr/lib/${CRAFT_ARCH_TRIPLET_BUILD_FOR}/gdk-pixbuf-2.0/*/loaders)
-      QUERY_LOADERS=/usr/lib/${CRAFT_ARCH_TRIPLET_BUILD_ON}/gdk-pixbuf-2.0/gdk-pixbuf-query-loaders
+      QUERY_LOADERS=/usr/lib/${CRAFT_ARCH_TRIPLET_BUILD_FOR}/gdk-pixbuf-2.0/gdk-pixbuf-query-loaders
       GDK_PIXBUF_MODULEDIR=${LOADERS_PATH} ${QUERY_LOADERS} > ${LOADERS_PATH}/../loaders.cache
       sed s!$CRAFT_PRIME!!g --in-place ${LOADERS_PATH}/../loaders.cache
 
@@ -116,7 +137,7 @@ parts:
 
   cleanup:
     after:
-      # Your application packaging
+      - flutterdemo
       - gsettings+pixbuf+immodules
       - setup
     plugin: nil
