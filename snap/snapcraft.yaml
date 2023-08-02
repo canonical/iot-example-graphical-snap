@@ -12,6 +12,7 @@ apps:
     command-chain: &_command-chain
       - bin/graphics-core22-wrapper
       - bin/wayland-launch
+      - bin/dbus-launch
     command: &_command usr/games/bomber
     plugs: &_plugs
       - opengl
@@ -82,6 +83,17 @@ parts:
       - bomber
       - qtwayland5
 
+  # Because Bomber won't run without a session dbus, and this isn't available to daemons on core
+  # (there is no "session") we need to include a dbus session in the snap.
+  # The `source: dbus` contains a script and configuration file for running `dbus-run-session`.
+  dbus:
+    plugin: dump
+    source: dbus
+    override-build: |
+      # replace the SNAP_NAME placeholder with our actual project name
+      sed --in-place "s/SNAP_NAME/$CRAFT_PROJECT_NAME/" $CRAFT_PART_BUILD/etc/dbus-1/session.conf
+      craftctl default
+
   # Some utility scripts for setting up the Wayland environment
   setup:
     plugin: dump
@@ -89,7 +101,7 @@ parts:
     override-build: |
       # The plugs needed to run Wayland. (wayland-launch checks them, setup.sh connects them)
       # You may add further plugs here if you want these options
-      PLUGS="opengl wayland graphics-core22"
+      PLUGS="opengl wayland graphics-core22 network-bind"
       sed --in-place "s/%PLUGS%/$PLUGS/g" $CRAFT_PART_BUILD/bin/wayland-launch
       sed --in-place "s/%PLUGS%/$PLUGS/g" $CRAFT_PART_BUILD/bin/setup.sh
       craftctl default
@@ -99,6 +111,7 @@ parts:
   graphics-core22:
     after:
       - bomber
+      - dbus
       - setup
     source: https://github.com/MirServer/graphics-core22.git
     plugin: dump
