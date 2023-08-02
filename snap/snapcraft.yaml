@@ -12,6 +12,7 @@ apps:
     command-chain: &_command-chain
       - bin/gpu-2604-wrapper
       - bin/wayland-launch
+      - bin/dbus-launch
     command: &_command usr/lib/${CRAFT_ARCH_TRIPLET_BUILD_FOR}/qt5/examples/widgets/widgets/calculator/calculator
     plugs: &_plugs
       - opengl
@@ -74,6 +75,13 @@ parts:
       - qtwayland5
       - xkb-data
 
+  # Because Bomber won't run without a session dbus, and this isn't available to daemons on core
+  # (there is no "session") we need to include a dbus session in the snap.
+  # The `source: dbus` contains a script and configuration file for running `dbus-run-session`.
+  dbus:
+    plugin: dump
+    source: dbus
+
   # Some utility scripts for setting up the Wayland environment
   setup:
     plugin: dump
@@ -91,6 +99,7 @@ parts:
   gpu-2604:
     after:
       - calculator
+      - dbus
       - setup
     source: https://github.com/canonical/gpu-snap.git
     plugin: dump
