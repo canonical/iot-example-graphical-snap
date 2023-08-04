@@ -1,0 +1,8 @@
+#!/bin/sh
+set -x
+
+export MIR_SERVER_PLATFORM_PATH=${SNAP}/usr/lib/${CRAFT_ARCH_TRIPLET}/mir/server-platform
+export MIR_SERVER_XWAYLAND_PATH=${SNAP}/usr/bin/Xwayland
+export MIR_SERVER_WAYLAND_HOST=${WAYLAND_DISPLAY}
+
+exec "$@"
