@@ -16,13 +16,19 @@ apps:
     command-chain: &_command-chain
       - bin/gpu-2404-wrapper
       - bin/wayland-launch
-    command: &_command # Command to launch your application
+    command: &_command usr/games/neverputt
+    desktop: &_desktop usr/share/applications/neverputt.desktop
     plugs: &_plugs
       - opengl
       - wayland
+      - hardware-observe
+      - audio-playback
+      - joystick
     environment: &_environment
-      XDG_DATA_HOME: $SNAP_USER_DATA
-      XDG_DATA_DIRS: $SNAP/usr/share
+      PULSE_SERVER: unix:$XDG_RUNTIME_DIR/../pulse/native
+      PULSE_SYSTEM: 1
+      PULSE_RUNTIME_PATH: /var/run/pulse
+      LD_LIBRARY_PATH: ${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}${SNAP}/usr/lib/${CRAFT_ARCH_TRIPLET_BUILD_FOR}:${SNAP}/usr/lib/${CRAFT_ARCH_TRIPLET_BUILD_FOR}/pulseaudio
 
   daemon:
     daemon: simple
@@ -30,6 +36,7 @@ apps:
     restart-condition: always
     command-chain: *_command-chain
     command: *_command
+    desktop: *_desktop
     plugs: *_plugs
     environment: *_environment
 
@@ -67,9 +74,31 @@ layout:
     bind: $SNAP/usr/share/sounds
   /etc/fonts:
     bind: $SNAP/etc/fonts
+  # neverputt [sic]
+  /usr/share/games/neverball:
+    bind: $SNAP/usr/share/games/neverball
+  /usr/share/alsa:
+    bind: $SNAP/usr/share/alsa
 
 parts:
-  # Your application packaging goes here
+  # Applications are installed from repositories (such as the Ubuntu Archive) are controlled using `stage-packages:`
+  # which lists the neverputt package and SDL2 toolkit libraries it needs.
+  #
+  # Using the `plugin: dump` means the `source: neverputt` directory is copied into the snap. For Neverputt this
+  # contains a configuration file that sets the application to fullscreen.
+  neverputt:
+    plugin: dump
+    source: neverputt
+    stage-packages:
+      - neverputt
+      - libsdl2-2.0-0
+      - libsdl2-image-2.0-0
+      - libsdl2-mixer-2.0-0
+      - libsdl2-net-2.0-0
+      - xkb-data
+    override-stage: |
+      craftctl default
+      sed -i s:Icon=neverputt:Icon=/usr/share/games/neverball/icon/neverputt.png:g $CRAFT_STAGE/usr/share/applications/neverputt.desktop
 
   # Some utility scripts for setting up the Wayland environment
   setup:
@@ -78,7 +107,7 @@ parts:
     override-build: |
       # The plugs needed to run Wayland. (wayland-launch checks them, setup.sh connects them)
       # You may add further plugs here if you want these options
-      PLUGS="opengl wayland gpu-2404"
+      PLUGS="opengl wayland gpu-2404 hardware-observe audio-playback joystick"
       sed --in-place "s/%PLUGS%/$PLUGS/g" $CRAFT_PART_BUILD/bin/wayland-launch
       sed --in-place "s/%PLUGS%/$PLUGS/g" $CRAFT_PART_BUILD/bin/setup.sh
       craftctl default
