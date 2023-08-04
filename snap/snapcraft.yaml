@@ -16,13 +16,14 @@ apps:
     command-chain: &_command-chain
       - bin/graphics-core22-wrapper
       - bin/wayland-launch
-    command: &_command # Command to launch your application
+      - bin/setup-mir
+      - bin/setup-x11
+      - usr/local/bin/x11_kiosk_launch
+    command: &_command usr/bin/glxgears
     plugs: &_plugs
       - opengl
       - wayland
-    environment: &_environment
-      XDG_DATA_HOME: $SNAP_USER_DATA
-      XDG_DATA_DIRS: $SNAP/usr/share
+      - network-bind   # For Mir (to serve X11)
 
   daemon:
     daemon: simple
@@ -31,7 +32,6 @@ apps:
     command-chain: *_command-chain
     command: *_command
     plugs: *_plugs
-    environment: *_environment
 
 # This is one of four snippets that relate to providing the userspace graphics needed by your application.
 # You can treat this as "magic" so long as you don't need to make changes.
@@ -58,9 +58,42 @@ layout:
     bind: $SNAP/graphics/libdrm
   /usr/share/drirc.d:
     symlink: $SNAP/graphics/drirc.d
+  # X11
+  /usr/bin/xkbcomp:
+    symlink: $SNAP/usr/bin/xkbcomp
+  /usr/share/X11:
+    bind: $SNAP/usr/share/X11
 
 parts:
-  # Your application packaging goes here
+  glxgears:
+    plugin: nil
+    stage-packages:
+      - mesa-utils
+
+  # A simple kiosk for X11 on Wayland
+  mir-kiosk-x11:
+    plugin: cmake
+    source: https://github.com/MirServer/mir_kiosk_x11.git
+    build-packages:
+      - pkg-config
+      - libmiral-dev
+      - make
+      - g++
+    stage-packages:
+      - libmiral4
+      - mir-platform-graphics-wayland
+      - dmz-cursor-theme
+      - fonts-freefont-ttf
+      - xwayland
+      - libbz2-1.0
+
+  # Some utility scripts for setting up the X11/Mir
+  env-setup:
+    plugin: dump
+    source: env-setup
+    override-build: |
+      sed --in-place s/\$\{CRAFT_ARCH_TRIPLET}/${CRAFT_ARCH_TRIPLET}/g $CRAFT_PART_BUILD/bin/*
+      craftctl default
 
   # Some utility scripts for setting up the Wayland environment
   setup:
@@ -69,7 +102,7 @@ parts:
     override-build: |
       # The plugs needed to run Wayland. (wayland-launch checks them, setup.sh connects them)
       # You may add further plugs here if you want these options
-      PLUGS="opengl wayland graphics-core22"
+      PLUGS="opengl wayland graphics-core22 network-bind"
       sed --in-place "s/%PLUGS%/$PLUGS/g" $CRAFT_PART_BUILD/bin/wayland-launch
       sed --in-place "s/%PLUGS%/$PLUGS/g" $CRAFT_PART_BUILD/bin/setup.sh
       craftctl default
@@ -78,7 +111,9 @@ parts:
 
   graphics-core22:
     after:
-      # Your application packaging
+      - glxgears
+      - mir-kiosk-x11
+      - env-setup
       - setup
     source: https://github.com/MirServer/graphics-core22.git
     plugin: dump
