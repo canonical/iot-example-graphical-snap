@@ -16,13 +16,14 @@ apps:
     command-chain: &_command-chain
       - bin/gpu-2604-wrapper
       - bin/wayland-launch
-    command: &_command # Command to launch your application
+      - bin/setup-mir
+      - bin/setup-x11
+      - usr/bin/mir-x11-kiosk-launch
+    command: &_command usr/bin/glxgears
     plugs: &_plugs
       - opengl
       - wayland
-    environment: &_environment
-      XDG_DATA_HOME: $SNAP_USER_DATA
-      XDG_DATA_DIRS: $SNAP/usr/share
+      - network-bind   # For Mir (to serve X11)
 
   daemon:
     daemon: simple
@@ -31,7 +32,6 @@ apps:
     command-chain: *_command-chain
     command: *_command
     plugs: *_plugs
-    environment: *_environment
 
 # This is one of four snippets that relate to providing the userspace graphics needed by your application.
 # You can treat this as "magic" so long as you don't need to make changes.
@@ -41,6 +41,11 @@ plugs:
     interface: content
     target: $SNAP/gpu-2604
     default-provider: mesa-2604
+
+# We need the mir-x11-kiosk package from the Mir PPA
+package-repositories:
+  - type: apt
+    ppa: mir-team/dev
 
 environment:
   # Other, generally useful environment settings...
@@ -54,57 +59,37 @@ environment:
 
 # The `layout` ensures that files can be found by applications where they are expected by the toolkit or application.
 layout:
-  # Other, generally useful paths
-  /usr/share/fonts:
-    bind: $SNAP/usr/share/fonts
-  /usr/share/icons:
-    bind: $SNAP/usr/share/icons
-  /usr/share/sounds:
-    bind: $SNAP/usr/share/sounds
-  /etc/fonts:
-    bind: $SNAP/etc/fonts
-  # GTK
-  /usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gdk-pixbuf-2.0:
-    bind: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gdk-pixbuf-2.0
-  /usr/lib/${CRAFT_ARCH_TRIPLET_BUILD_FOR}/gtk-3.0:
-    bind: $SNAP/usr/lib/${CRAFT_ARCH_TRIPLET_BUILD_FOR}/gtk-3.0
-  /usr/share/mime:
-    bind: $SNAP/usr/share/mime
-  /etc/gtk-3.0:
-    bind: $SNAP/etc/gtk-3.0
+  # X11
+  /usr/bin/xkbcomp:
+    symlink: $SNAP/usr/bin/xkbcomp
+  /usr/share/X11:
+    bind: $SNAP/usr/share/X11
+  /usr/share/xkeyboard-config-2:
+    symlink: $SNAP/usr/share/xkeyboard-config-2
 
 parts:
-  # Your application packaging goes here
-
-  # gsettings, pixbuf and immodules are not needed by all snaps,
-  # but they are so common a requirement include them here
-  gsettings+pixbuf+immodules:
+  glxgears:
     plugin: nil
-    build-packages:
-      - libgdk-pixbuf-2.0-0
-      - librsvg2-common
-      - shared-mime-info
-      - libgtk-3-0
-    override-build: |
-      craftctl default
-      # Update mime database
-      update-mime-database ${CRAFT_PART_INSTALL}/usr/share/mime
-      # build immodules cache
-      mkdir -p ${CRAFT_PART_INSTALL}/usr/lib/${CRAFT_ARCH_TRIPLET_BUILD_FOR}/gtk-3.0/3.0.0/
-      /usr/lib/${CRAFT_ARCH_TRIPLET_BUILD_FOR}/libgtk-3-0t64/gtk-query-immodules-3.0 > ${CRAFT_PART_INSTALL}/usr/lib/${CRAFT_ARCH_TRIPLET_BUILD_FOR}/gtk-3.0/3.0.0/immodules.cache
     stage-packages:
-      - librsvg2-common
-      - gsettings-desktop-schemas
-      - libglib2.0-bin
-    override-prime: |
+      - mesa-utils
+    stage:
+      - -usr/share/X11/xkb
+
+  # A simple kiosk for X11 on Wayland
+  mir-x11-kiosk:
+    plugin: nil
+    stage-packages:
+      - mir-x11-kiosk
+      - dmz-cursor-theme
+      - xkb-data
+
+  # Some utility scripts for setting up the X11/Mir
+  env-setup:
+    plugin: dump
+    source: env-setup
+    override-build: |
+      sed --in-place s/\$\{CRAFT_ARCH_TRIPLET}/${CRAFT_ARCH_TRIPLET_BUILD_FOR}/g $CRAFT_PART_BUILD/bin/*
       craftctl default
-      # Compile the gsettings schemas
-      /usr/lib/${CRAFT_ARCH_TRIPLET_BUILD_FOR}/glib-2.0/glib-compile-schemas "$CRAFT_PRIME/usr/share/glib-2.0/schemas"
-      # Index the pixbuf loaders
-      LOADERS_PATH=$(echo ${CRAFT_PRIME}/usr/lib/${CRAFT_ARCH_TRIPLET_BUILD_FOR}/gdk-pixbuf-2.0/*/loaders)
-      QUERY_LOADERS=/usr/lib/${CRAFT_ARCH_TRIPLET_BUILD_ON}/gdk-pixbuf-2.0/gdk-pixbuf-query-loaders
-      GDK_PIXBUF_MODULEDIR=${LOADERS_PATH} ${QUERY_LOADERS} > ${LOADERS_PATH}/../loaders.cache
-      sed s!$CRAFT_PRIME!!g --in-place ${LOADERS_PATH}/../loaders.cache
 
   # Some utility scripts for setting up the Wayland environment
   setup:
@@ -113,7 +98,7 @@ parts:
     override-build: |
       # The plugs needed to run Wayland. (wayland-launch checks them, setup.sh connects them)
       # You may add further plugs here if you want these options
-      PLUGS="opengl wayland gpu-2604"
+      PLUGS="opengl wayland gpu-2604 network-bind"
       sed --in-place "s/%PLUGS%/$PLUGS/g" $CRAFT_PART_BUILD/bin/wayland-launch
       sed --in-place "s/%PLUGS%/$PLUGS/g" $CRAFT_PART_BUILD/bin/setup.sh
       craftctl default
@@ -122,22 +107,19 @@ parts:
 
   gpu-2604:
     after:
-      # Your application packaging
-      - gsettings+pixbuf+immodules
+      - glxgears
+      - mir-x11-kiosk
+      - env-setup
       - setup
     source: https://github.com/canonical/gpu-snap.git
     plugin: dump
     override-prime: |
       craftctl default
       ${CRAFT_PART_SRC}/bin/gpu-2604-cleanup mesa-2604
-      cd "$CRAFT_PRIME/usr/share/"
-      rm -rf bug drirc.d glvnd libdrm lintian man
-      rm -rf applications apport bash-completion dbus-1 doc-base doc gtk-doc\
-             help pkgconfig libthai metainfo themes thumbnailers xml
     prime:
       - bin/gpu-2604-wrapper
 
 platforms:
   amd64:
-  armhf:
   arm64:
+  armhf:
