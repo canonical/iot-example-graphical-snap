@@ -3,12 +3,12 @@ name: Refresh examples
 on:
   push:
     branches:
-    - main
+    - 22/main
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
 
 jobs:
-  Refresh:
+  Refresh22:
     runs-on: ubuntu-latest
 
     timeout-minutes: 45
@@ -17,20 +17,20 @@ jobs:
       fail-fast: false
       matrix:
         branch:
-        - Flutter-demo
-        - GTK3-adventure
-        - GTK3-mastermind
-        - Qt6-example
-        - SDL2-neverputt
-        - native-glmark2
-        - x11-glxgears
+        - 22/Flutter-demo
+        - 22/GTK3-adventure
+        - 22/GTK3-mastermind
+        - 22/Qt6-example
+        - 22/SDL2-neverputt
+        - 22/native-glmark2
+        - 22/x11-glxgears
         review:
         - true
         include:
-        - branch: Electron-quick-start
+        - branch: 22/Electron-quick-start
           review: false
-        - branch: Qt5-bomber-first-try
-          downstream: Qt5-bomber
+        - branch: 22/Qt5-bomber-first-try
+          downstream: 22/Qt5-bomber
 
     steps:
     - name: Check out code
@@ -63,9 +63,8 @@ jobs:
 
     - name: Install prerequisites
       run: |
-        sudo apt-get --yes install coreutils xvfb
+        sudo apt-get --yes install coreutils xvfb inotify-tools
         sudo snap install ubuntu-frame
-        sudo snap install --classic frame-it
 
     - name: Install the built snap and set it up
       run: |
@@ -74,11 +73,53 @@ jobs:
 
     - name: Test that it runs
       run: |
+        wayland_display=${WAYLAND_DISPLAY:-wayland-0}
+  
+        if [ -O "${XDG_RUNTIME_DIR}/${wayland_display}" ]; then
+          # Choose a (new) WAYLAND_DISPLAY
+          port=0
+          while [ -e "${XDG_RUNTIME_DIR}/wayland-${port}" ]; do
+            ((port+=1))
+          done
+          wayland_display=wayland-${port}
+        fi
+        
+        WAYLAND_DISPLAY="${wayland_display}" xvfb-run ubuntu-frame&
+        xvfb_run_pid=$?
+        
+        wait_for()
+        {
+          until
+            until
+              inotifywait --event create "$(dirname "$1")"&
+              inotify_pid=$!
+              [ -e "$1" ] || sleep 2 && [ -e "$1" ]
+            do
+              wait "${inotify_pid}"
+            done
+            kill "${inotify_pid}"
+            [ -O "$1" ]
+          do
+            sleep 1
+          done
+        }
+
+        wait_for "${XDG_RUNTIME_DIR}/${wayland_display}"
+
         RET=0
-        timeout --kill-after=5 30 xvfb-run frame-it iot-example-graphical-snap || RET=$?
+        WAYLAND_DISPLAY="${wayland_display}" timeout --kill-after=5 30 iot-example-graphical-snap || RET=$?
+        echo ">>>>>>" $RET "<<<<<<"
+        
+        killall "$(realpath /snap/ubuntu-frame/current/usr/local/bin/frame)"
 
         # `timeout` returns 124 on timeout, and that's what we're expecting
         [ "$RET" == 124 ] || exit 1
+
+    - if: ${{ failure() && runner.debug }}
+      name: Debug
+      uses: lhotari/action-upterm@v1
+      with:
+        limit-access-to-actor: true
 
     - name: Push upstream
       if: ${{ github.event_name == 'push' }}
