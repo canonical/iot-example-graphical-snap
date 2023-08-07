@@ -58,57 +58,9 @@ layout:
     bind: $SNAP/graphics/libdrm
   /usr/share/drirc.d:
     symlink: $SNAP/graphics/drirc.d
-  # Other, generally useful paths
-  /usr/share/fonts:
-    bind: $SNAP/usr/share/fonts
-  /usr/share/icons:
-    bind: $SNAP/usr/share/icons
-  /usr/share/sounds:
-    bind: $SNAP/usr/share/sounds
-  /etc/fonts:
-    bind: $SNAP/etc/fonts
-  # GTK
-  /usr/lib/$CRAFT_ARCH_TRIPLET/gdk-pixbuf-2.0:
-    bind: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET/gdk-pixbuf-2.0
-  /usr/lib/${CRAFT_ARCH_TRIPLET}/gtk-3.0:
-    bind: $SNAP/usr/lib/${CRAFT_ARCH_TRIPLET}/gtk-3.0
-  /usr/share/mime:
-    bind: $SNAP/usr/share/mime
-  /etc/gtk-3.0:
-    bind: $SNAP/etc/gtk-3.0
 
 parts:
   # Your application packaging goes here
-
-  # gsettings, pixbuf and immodules are not needed by all snaps,
-  # but they are so common a requirement include them here
-  gsettings+pixbuf+immodules:
-    plugin: nil
-    build-packages:
-      - libgdk-pixbuf2.0-0
-      - librsvg2-common
-      - shared-mime-info
-      - libgtk-3-0
-    override-build: |
-      craftctl default
-      # Update mime database
-      update-mime-database ${CRAFT_PART_INSTALL}/usr/share/mime
-      # build immodules cache
-      mkdir -p ${CRAFT_PART_INSTALL}/usr/lib/${CRAFT_ARCH_TRIPLET}/gtk-3.0/3.0.0/
-      /usr/lib/${CRAFT_ARCH_TRIPLET}/libgtk-3-0/gtk-query-immodules-3.0 > ${CRAFT_PART_INSTALL}/usr/lib/${CRAFT_ARCH_TRIPLET}/gtk-3.0/3.0.0/immodules.cache
-    stage-packages:
-      - librsvg2-common
-      - gsettings-desktop-schemas
-      - libglib2.0-bin
-    override-prime: |
-      craftctl default
-      # Compile the gsettings schemas
-      /usr/lib/${CRAFT_ARCH_TRIPLET}/glib-2.0/glib-compile-schemas "$CRAFT_PRIME/usr/share/glib-2.0/schemas"
-      # Index the pixbuf loaders
-      LOADERS_PATH=$(echo ${CRAFT_PRIME}/usr/lib/${CRAFT_ARCH_TRIPLET}/gdk-pixbuf-2.0/*/loaders)
-      QUERY_LOADERS=/usr/lib/${CRAFT_ARCH_TRIPLET}/gdk-pixbuf-2.0/gdk-pixbuf-query-loaders
-      GDK_PIXBUF_MODULEDIR=${LOADERS_PATH} ${QUERY_LOADERS} > ${LOADERS_PATH}/../loaders.cache
-      sed s!$CRAFT_PRIME!!g --in-place ${LOADERS_PATH}/../loaders.cache
 
   # Some utility scripts for setting up the Wayland environment
   setup:
@@ -127,7 +79,6 @@ parts:
   graphics-core22:
     after:
       # Your application packaging
-      - gsettings+pixbuf+immodules
       - setup
     source: https://github.com/MirServer/graphics-core22.git
     plugin: dump
