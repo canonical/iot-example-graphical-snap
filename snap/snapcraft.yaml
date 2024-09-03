@@ -11,6 +11,10 @@ compression: lzo
 grade: stable
 base: core22
 
+package-repositories:
+  - type: apt
+    ppa: mir-team/release
+
 apps:
   iot-example-graphical-snap:
     # This sets up providing the graphics userspace needed by your application.
@@ -20,7 +24,7 @@ apps:
       - bin/wayland-launch
       - bin/setup-mir
       - bin/setup-x11
-      - usr/local/bin/x11_kiosk_launch
+      - usr/bin/mir-x11-kiosk-launch
     command: &_command usr/bin/glxgears
     plugs: &_plugs
       - opengl
@@ -61,21 +65,12 @@ parts:
       - mesa-utils
 
   # A simple kiosk for X11 on Wayland
-  mir-kiosk-x11:
-    plugin: cmake
-    source: https://github.com/MirServer/mir_kiosk_x11.git
-    build-packages:
-      - pkg-config
-      - libmiral-dev
-      - make
-      - g++
+  mir-x11-kiosk:
+    plugin: nil
     stage-packages:
-      - libmiral4
-      - mir-platform-graphics-wayland
+      - mir-x11-kiosk
       - dmz-cursor-theme
-      - fonts-freefont-ttf
-      - xwayland
-      - libbz2-1.0
+      - xkb-data
 
   # Some utility scripts for setting up the X11/Mir
   env-setup:
@@ -102,7 +97,7 @@ parts:
   cleanup:
     after:
       - glxgears
-      - mir-kiosk-x11
+      - mir-x11-kiosk
       - env-setup
       - setup
     plugin: nil
