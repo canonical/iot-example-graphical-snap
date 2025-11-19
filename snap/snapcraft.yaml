@@ -96,7 +96,8 @@ parts:
       npm install --unsafe-perm true electron-packager
       electron-packager . --overwrite --platform=linux \
           --output=release-build --prune=true
-      cp -a ./electron-quick-start-linux-* $SNAPCRAFT_PART_INSTALL/electron-helloworld
+      # Copy the electron-packager output (uses package name from source repo)
+      cp -a ./release-build/*-linux-* $SNAPCRAFT_PART_INSTALL/electron-helloworld
       chmod a+rx $SNAPCRAFT_PART_INSTALL/electron-helloworld
     stage-packages:
       - libnspr4
