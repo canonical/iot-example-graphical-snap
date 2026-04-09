@@ -3,14 +3,13 @@ name: Refresh examples
 on:
   push:
     branches:
-    - 22/main
+    - 24/main
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
     branches:
-    - 22/main
+    - 24/main
 
 jobs:
-  Refresh22:
+  Refresh:
     runs-on: ubuntu-latest
 
     timeout-minutes: 45
@@ -19,20 +18,19 @@ jobs:
       fail-fast: false
       matrix:
         branch:
-        - 22/Flutter-demo
-        - 22/GTK3-adventure
-        - 22/GTK3-mastermind
-        - 22/Qt6-example
-        - 22/SDL2-neverputt
-        - 22/native-glmark2
-        - 22/x11-glxgears
+        - 24/Flutter-demo
+        - 24/GTK3-adventure
+        - 24/GTK3-mastermind
+        - 24/Qt6-example
+        - 24/native-glmark2
+        - 24/x11-glxgears
         review:
         - true
         include:
-        - branch: 22/Electron-quick-start
+        - branch: 24/Electron-quick-start
           review: false
-        - branch: 22/Qt5-bomber-first-try
-          downstream: 22/Qt5-bomber
+        - branch: 24/Qt5-bomber-first-try
+          downstream: 24/Qt5-bomber
 
     steps:
     - name: Check out code
