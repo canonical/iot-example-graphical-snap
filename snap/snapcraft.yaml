@@ -9,12 +9,12 @@ description: |
 confinement: strict
 compression: lzo
 grade: stable
-base: core24
+base: core26
 
 apps:
   iot-example-graphical-snap:
     command-chain: &_command-chain
-      - bin/gpu-2404-wrapper
+      - bin/gpu-2604-wrapper
       - bin/wayland-launch
     command: &_command # Command to launch your application
     plugs: &_plugs
@@ -35,12 +35,12 @@ apps:
 
 # This is one of four snippets that relate to providing the userspace graphics needed by your application.
 # You can treat this as "magic" so long as you don't need to make changes.
-# On the Mir website there's a lot more detail on [the gpu-2404 Snap interface](https://mir-server.io/docs/the-gpu-2404-snap-interface) and it's use.
+# On the Mir website there's a lot more detail on [the gpu-2604 Snap interface](https://mir-server.io/docs/the-gpu-2604-snap-interface) and it's use.
 plugs:
-  gpu-2404:
+  gpu-2604:
     interface: content
-    target: $SNAP/gpu-2404
-    default-provider: mesa-2404
+    target: $SNAP/gpu-2604
+    default-provider: mesa-2604
 
 environment:
   # Other, generally useful environment settings...
@@ -54,10 +54,6 @@ environment:
 
 # The `layout` ensures that files can be found by applications where they are expected by the toolkit or application.
 layout:
-  /usr/share/libdrm:
-    bind: $SNAP/gpu-2404/libdrm
-  /usr/share/drirc.d:
-    symlink: $SNAP/gpu-2404/drirc.d
   # Other, generally useful paths
   /usr/share/fonts:
     bind: $SNAP/usr/share/fonts
@@ -85,7 +81,7 @@ parts:
   gsettings+pixbuf+immodules:
     plugin: nil
     build-packages:
-      - libgdk-pixbuf2.0-0
+      - libgdk-pixbuf-2.0-0
       - librsvg2-common
       - shared-mime-info
       - libgtk-3-0
@@ -117,14 +113,14 @@ parts:
     override-build: |
       # The plugs needed to run Wayland. (wayland-launch checks them, setup.sh connects them)
       # You may add further plugs here if you want these options
-      PLUGS="opengl wayland gpu-2404"
+      PLUGS="opengl wayland gpu-2604"
       sed --in-place "s/%PLUGS%/$PLUGS/g" $CRAFT_PART_BUILD/bin/wayland-launch
       sed --in-place "s/%PLUGS%/$PLUGS/g" $CRAFT_PART_BUILD/bin/setup.sh
       craftctl default
     stage-packages:
       - inotify-tools
 
-  gpu-2404:
+  gpu-2604:
     after:
       # Your application packaging
       - gsettings+pixbuf+immodules
@@ -133,13 +129,13 @@ parts:
     plugin: dump
     override-prime: |
       craftctl default
-      ${CRAFT_PART_SRC}/bin/gpu-2404-cleanup mesa-2404
+      ${CRAFT_PART_SRC}/bin/gpu-2604-cleanup mesa-2604
       cd "$CRAFT_PRIME/usr/share/"
       rm -rf bug drirc.d glvnd libdrm lintian man
       rm -rf applications apport bash-completion dbus-1 doc-base doc gtk-doc\
              help pkgconfig libthai metainfo themes thumbnailers xml
     prime:
-      - bin/gpu-2404-wrapper
+      - bin/gpu-2604-wrapper
 
 platforms:
   amd64:
