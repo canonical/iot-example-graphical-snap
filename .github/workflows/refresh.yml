@@ -3,10 +3,10 @@ name: Refresh examples
 on:
   push:
     branches:
-    - 24/main
+    - 26/main
   pull_request:
     branches:
-    - 24/main
+    - 26/main
 
 jobs:
   Refresh:
@@ -18,19 +18,19 @@ jobs:
       fail-fast: false
       matrix:
         branch:
-        - 24/Flutter-demo
-        - 24/GTK3-adventure
-        - 24/GTK3-mastermind
-        - 24/Qt6-example
-        - 24/native-glmark2
-        - 24/x11-glxgears
+        - 26/Flutter-demo
+        - 26/GTK3-adventure
+        - 26/GTK3-mastermind
+        - 26/Qt6-example
+        - 26/native-glmark2
+        - 26/x11-glxgears
         review:
         - true
         include:
-        - branch: 24/Electron-quick-start
+        - branch: 26/Electron-quick-start
           review: false
-        - branch: 24/Qt5-bomber-first-try
-          downstream: 24/Qt5-bomber
+        - branch: 26/Qt5-example-first-try
+          downstream: 26/Qt5-example
 
     steps:
     - name: Check out code
@@ -74,7 +74,7 @@ jobs:
     - name: Test that it runs
       run: |
         wayland_display=${WAYLAND_DISPLAY:-wayland-0}
-  
+
         if [ -O "${XDG_RUNTIME_DIR}/${wayland_display}" ]; then
           # Choose a (new) WAYLAND_DISPLAY
           port=0
@@ -83,10 +83,10 @@ jobs:
           done
           wayland_display=wayland-${port}
         fi
-        
+
         WAYLAND_DISPLAY="${wayland_display}" xvfb-run ubuntu-frame&
         xvfb_run_pid=$?
-        
+
         wait_for()
         {
           until
@@ -109,7 +109,7 @@ jobs:
         RET=0
         WAYLAND_DISPLAY="${wayland_display}" timeout --kill-after=5 30 iot-example-graphical-snap || RET=$?
         echo ">>>>>>" $RET "<<<<<<"
-        
+
         killall "$(realpath /snap/ubuntu-frame/current/usr/local/bin/frame)"
 
         # `timeout` returns 124 on timeout, and that's what we're expecting
