@@ -116,8 +116,8 @@ jobs:
         [ "$RET" == 124 ] || exit 1
 
     - if: ${{ failure() && runner.debug }}
-      name: Debug
-      uses: lhotari/action-upterm@v1
+      name: Setup upterm session
+      uses: mxschmitt/action-tmate@c0afd6f790e3a5564914980036ebf83216678101 # v3.23
       with:
         limit-access-to-actor: true
 
