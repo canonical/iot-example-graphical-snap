@@ -13,8 +13,10 @@ base: core22
 
 apps:
   iot-example-graphical-snap:
+    # This sets up providing the graphics userspace needed by your application.
+    # See [How to use graphics in snaps documentation](https://ubuntu.com/frame/docs/22/how-to/use-snap-graphics)
+    extensions: [gpu]
     command-chain: &_command-chain
-      - bin/graphics-core22-wrapper
       - bin/wayland-launch
     command: &_command # Command to launch your application
     plugs: &_plugs
@@ -25,6 +27,7 @@ apps:
       XDG_DATA_DIRS: $SNAP/usr/share
 
   daemon:
+    extensions: [gpu]
     daemon: simple
     restart-delay: 3s
     restart-condition: always
@@ -32,15 +35,6 @@ apps:
     command: *_command
     plugs: *_plugs
     environment: *_environment
-
-# This is one of four snippets that relate to providing the userspace graphics needed by your application.
-# You can treat this as "magic" so long as you don't need to make changes.
-# On the Mir website there's a lot more detail on [the graphics-core22 Snap interface](https://mir-server.io/docs/the-graphics-core22-snap-interface) and it's use.
-plugs:
-  graphics-core22:
-    interface: content
-    target: $SNAP/graphics
-    default-provider: mesa-core22
 
 environment:
   # Other, generally useful environment settings...
@@ -54,10 +48,6 @@ environment:
 
 # The `layout` ensures that files can be found by applications where they are expected by the toolkit or application.
 layout:
-  /usr/share/libdrm:
-    bind: $SNAP/graphics/libdrm
-  /usr/share/drirc.d:
-    symlink: $SNAP/graphics/drirc.d
   # Other, generally useful paths
   /usr/share/fonts:
     bind: $SNAP/usr/share/fonts
@@ -124,22 +114,17 @@ parts:
     stage-packages:
       - inotify-tools
 
-  graphics-core22:
+  cleanup:
     after:
       # Your application packaging
       - gsettings+pixbuf+immodules
       - setup
-    source: https://github.com/MirServer/graphics-core22.git
-    plugin: dump
+    plugin: nil
     override-prime: |
       craftctl default
-      ${CRAFT_PART_SRC}/bin/graphics-core22-cleanup mesa-core22 nvidia-core22
       cd "$CRAFT_PRIME/usr/share/"
-      rm -rf bug drirc.d glvnd libdrm lintian man
       rm -rf applications apport bash-completion dbus-1 doc-base doc gtk-doc\
-             help pkgconfig libthai metainfo themes thumbnailers xml
-    prime:
-      - bin/graphics-core22-wrapper
+             help lintian pkgconfig libthai man metainfo themes thumbnailers xml
 
 architectures:
   - build-on: amd64
