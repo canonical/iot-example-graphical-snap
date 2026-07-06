@@ -8,9 +8,13 @@ on:
     branches:
     - 26/main
 
+permissions: {}
+
 jobs:
   Refresh:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     timeout-minutes: 45
 
@@ -34,30 +38,34 @@ jobs:
 
     steps:
     - name: Check out code
-      uses: actions/checkout@v6
+      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       with:
         # check out the target branch
         ref: ${{ matrix.branch }}
         # we need all the history to rebase
         fetch-depth: 0
+        persist-credentials: true
 
     - name: Update ${{ matrix.branch }}
       env:
+        BRANCH: ${{ matrix.branch }}
+        DOWNSTREAM: ${{ matrix.downstream || '' }}
+        UPSTREAM_REF: ${{ github.event_name == 'pull_request' && github.base_ref || github.ref_name }}
         GIT_AUTHOR_NAME: "Mir CI Bot"
         GIT_AUTHOR_EMAIL: "mir-ci-bot@canonical.com"
         GIT_COMMITTER_NAME: "Mir CI Bot"
         GIT_COMMITTER_EMAIL: "mir-ci-bot@canonical.com"
       run: |
-        git fetch origin ${{ github.event_name == 'pull_request' && github.base_ref || github.ref }}
+        git fetch origin -- "${UPSTREAM_REF}"
         git rebase FETCH_HEAD
-        if [ -n "${{ matrix.downstream }}" ]; then
+        if [ -n "${DOWNSTREAM}" ]; then
           # there's a "second stage" here
-          git checkout ${{ matrix.downstream }}
-          git rebase ${{ matrix.branch }}
+          git checkout "${DOWNSTREAM}"
+          git rebase "${BRANCH}"
         fi
 
     - name: Build the snap
-      uses: canonical/actions/build-snap@release
+      uses: canonical/actions/build-snap@cb345b48c77065507280f3dd9d4f42299af2d1a6 # release @ 2026.07.06
       with:
         review: ${{ matrix.review }}
 
@@ -117,7 +125,7 @@ jobs:
 
     - if: ${{ failure() && runner.debug }}
       name: Setup upterm session
-      uses: mxschmitt/action-tmate@c0afd6f790e3a5564914980036ebf83216678101 # v3.23
+      uses: mxschmitt/action-tmate@35b54afac29c97fb54faba5b513f8fbd1882f113 # v3.24
       with:
         limit-access-to-actor: true
 
