@@ -13,8 +13,10 @@ base: core24
 
 apps:
   iot-example-graphical-snap:
+    # This sets up providing the graphics userspace needed by your application.
+    # See [How to use graphics in snaps documentation](https://ubuntu.com/frame/docs/24/how-to/use-snap-graphics)
+    extensions: [gpu]
     command-chain: &_command-chain
-      - bin/gpu-2404-wrapper
       - bin/wayland-launch
     command: &_command # Command to launch your application
     plugs: &_plugs
@@ -25,6 +27,7 @@ apps:
       XDG_DATA_DIRS: $SNAP/usr/share
 
   daemon:
+    extensions: [gpu]
     daemon: simple
     restart-delay: 3s
     restart-condition: always
@@ -32,15 +35,6 @@ apps:
     command: *_command
     plugs: *_plugs
     environment: *_environment
-
-# This is one of four snippets that relate to providing the userspace graphics needed by your application.
-# You can treat this as "magic" so long as you don't need to make changes.
-# On the Mir website there's a lot more detail on [the gpu-2404 Snap interface](https://mir-server.io/docs/the-gpu-2404-snap-interface) and it's use.
-plugs:
-  gpu-2404:
-    interface: content
-    target: $SNAP/gpu-2404
-    default-provider: mesa-2404
 
 environment:
   # Other, generally useful environment settings...
@@ -54,10 +48,6 @@ environment:
 
 # The `layout` ensures that files can be found by applications where they are expected by the toolkit or application.
 layout:
-  /usr/share/libdrm:
-    bind: $SNAP/gpu-2404/libdrm
-  /usr/share/drirc.d:
-    symlink: $SNAP/gpu-2404/drirc.d
   # Other, generally useful paths
   /usr/share/fonts:
     bind: $SNAP/usr/share/fonts
@@ -124,22 +114,17 @@ parts:
     stage-packages:
       - inotify-tools
 
-  gpu-2404:
+  cleanup:
     after:
       # Your application packaging
       - gsettings+pixbuf+immodules
       - setup
-    source: https://github.com/canonical/gpu-snap.git
-    plugin: dump
+    plugin: nil
     override-prime: |
       craftctl default
-      ${CRAFT_PART_SRC}/bin/gpu-2404-cleanup mesa-2404
       cd "$CRAFT_PRIME/usr/share/"
-      rm -rf bug drirc.d glvnd libdrm lintian man
       rm -rf applications apport bash-completion dbus-1 doc-base doc gtk-doc\
-             help pkgconfig libthai metainfo themes thumbnailers xml
-    prime:
-      - bin/gpu-2404-wrapper
+             help linitan pkgconfig libthai man metainfo themes thumbnailers xml
 
 platforms:
   amd64:
