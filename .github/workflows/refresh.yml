@@ -9,9 +9,13 @@ on:
     branches:
     - 22/main
 
+permissions: {}
+
 jobs:
   Refresh22:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     timeout-minutes: 45
 
@@ -36,30 +40,34 @@ jobs:
 
     steps:
     - name: Check out code
-      uses: actions/checkout@v4
+      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       with:
         # check out the target branch
         ref: ${{ matrix.branch }}
         # we need all the history to rebase
         fetch-depth: 0
+        persist-credentials: true
 
     - name: Update ${{ matrix.branch }}
       env:
+        REF: ${{ github.event_name == 'pull_request' && github.base_ref || github.ref }}
+        BRANCH: ${{ matrix.branch }}
+        DOWNSTREAM: ${{ matrix.downstream }}
         GIT_AUTHOR_NAME: "Mir CI Bot"
         GIT_AUTHOR_EMAIL: "mir-ci-bot@canonical.com"
         GIT_COMMITTER_NAME: "Mir CI Bot"
         GIT_COMMITTER_EMAIL: "mir-ci-bot@canonical.com"
       run: |
-        git fetch origin ${{ github.event_name == 'pull_request' && github.base_ref || github.ref }}
+        git fetch origin "$REF"
         git rebase FETCH_HEAD
-        if [ -n "${{ matrix.downstream }}" ]; then
+        if [ -n "$DOWNSTREAM" ]; then
           # there's a "second stage" here
-          git checkout ${{ matrix.downstream }}
-          git rebase ${{ matrix.branch }}
+          git checkout "$DOWNSTREAM"
+          git rebase "$BRANCH"
         fi
 
     - name: Build the snap
-      uses: canonical/actions/build-snap@release
+      uses: canonical/actions/build-snap@cb345b48c77065507280f3dd9d4f42299af2d1a6 # release @ 2026.07.06
       with:
         review: ${{ matrix.review }}
 
@@ -76,7 +84,7 @@ jobs:
     - name: Test that it runs
       run: |
         wayland_display=${WAYLAND_DISPLAY:-wayland-0}
-  
+
         if [ -O "${XDG_RUNTIME_DIR}/${wayland_display}" ]; then
           # Choose a (new) WAYLAND_DISPLAY
           port=0
@@ -85,10 +93,10 @@ jobs:
           done
           wayland_display=wayland-${port}
         fi
-        
+
         WAYLAND_DISPLAY="${wayland_display}" xvfb-run ubuntu-frame&
         xvfb_run_pid=$?
-        
+
         wait_for()
         {
           until
@@ -111,7 +119,7 @@ jobs:
         RET=0
         WAYLAND_DISPLAY="${wayland_display}" timeout --kill-after=5 30 iot-example-graphical-snap || RET=$?
         echo ">>>>>>" $RET "<<<<<<"
-        
+
         killall "$(realpath /snap/ubuntu-frame/current/usr/local/bin/frame)"
 
         # `timeout` returns 124 on timeout, and that's what we're expecting
@@ -119,7 +127,7 @@ jobs:
 
     - if: ${{ failure() && runner.debug }}
       name: Debug
-      uses: lhotari/action-upterm@v1
+      uses: lhotari/action-upterm@b0357f23233f5ea6d58947c0c402e0631bab7334 # v1
       with:
         limit-access-to-actor: true
 
