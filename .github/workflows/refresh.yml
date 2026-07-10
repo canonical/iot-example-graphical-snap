@@ -52,7 +52,7 @@ jobs:
         GIT_AUTHOR_EMAIL: "mir-ci-bot@canonical.com"
         GIT_COMMITTER_NAME: "Mir CI Bot"
         GIT_COMMITTER_EMAIL: "mir-ci-bot@canonical.com"
-        TARGET_REF: ${{ github.event_name == 'pull_request' && github.base_ref || github.ref_name }}
+        TARGET_REF: ${{ github.event_name == 'pull_request' && github.base_ref || github.ref }}
       run: |
         git fetch origin "${TARGET_REF}"
         git rebase FETCH_HEAD
