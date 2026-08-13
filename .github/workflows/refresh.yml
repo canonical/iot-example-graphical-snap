@@ -48,7 +48,7 @@ jobs:
         GIT_COMMITTER_NAME: "Mir CI Bot"
         GIT_COMMITTER_EMAIL: "mir-ci-bot@canonical.com"
       run: |
-        git fetch origin ${{ github.event_name == 'pull_request' && github.base_ref || github.ref }}
+        git fetch origin ${{ github.event_name == 'pull_request' && github.head_ref || github.ref }}
         git rebase FETCH_HEAD
         if [ -n "${{ matrix.downstream }}" ]; then
           # there's a "second stage" here
