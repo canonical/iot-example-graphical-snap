@@ -12,6 +12,9 @@ jobs:
   Refresh:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write
+
     timeout-minutes: 45
 
     strategy:
