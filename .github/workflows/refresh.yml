@@ -51,7 +51,7 @@ jobs:
       env:
         BRANCH: ${{ matrix.branch }}
         DOWNSTREAM: ${{ matrix.downstream || '' }}
-        UPSTREAM_REF: ${{ github.event_name == 'pull_request' && github.base_ref || github.ref }}
+        UPSTREAM_REF: ${{ github.event_name == 'pull_request' && format('refs/pull/{0}/head', github.event.pull_request.number) || github.ref }}
         GIT_AUTHOR_NAME: "Mir CI Bot"
         GIT_AUTHOR_EMAIL: "mir-ci-bot@canonical.com"
         GIT_COMMITTER_NAME: "Mir CI Bot"
