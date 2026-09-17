@@ -1,5 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "baseBranchPatterns": ["/^[0-9]+\\/main$/"],
   "extends": [
     "config:recommended",
     "helpers:pinGitHubActionDigestsToSemver"
