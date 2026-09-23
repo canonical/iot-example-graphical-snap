@@ -64,6 +64,8 @@ layout:
     bind: $SNAP/usr/libexec/glycin-loaders
   /usr/lib/${CRAFT_ARCH_TRIPLET_BUILD_FOR}/gtk-3.0:
     bind: $SNAP/usr/lib/${CRAFT_ARCH_TRIPLET_BUILD_FOR}/gtk-3.0
+  /usr/libexec/glycin-loaders:
+    symlink: $SNAP/usr/libexec/glycin-loaders
   /usr/share/mime:
     bind: $SNAP/usr/share/mime
   /etc/gtk-3.0:
