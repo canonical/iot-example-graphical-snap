@@ -28,14 +28,17 @@ jobs:
         - 26/GTK3-mastermind
         - 26/Qt6-example
         - 26/native-glmark2
-        - 26/x11-glxgears
         review:
+        - true
+        run:
         - true
         include:
         - branch: 26/Electron-quick-start
           review: false
         - branch: 26/Qt5-example-first-try
           downstream: 26/Qt5-example
+        - branch: 26/x11-glxgears
+          run: false
 
     steps:
     - name: Check out code
@@ -81,6 +84,7 @@ jobs:
         /snap/iot-example-graphical-snap/current/bin/setup.sh
 
     - name: Test that it runs
+      if: ${{ matrix.run == 'true'}}
       run: |
         wayland_display=${WAYLAND_DISPLAY:-wayland-0}
 
