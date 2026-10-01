@@ -37,7 +37,7 @@ jobs:
           review: false
         - branch: 24/Qt5-bomber-first-try
           downstream: 24/Qt5-bomber
-        - branch: 26/x11-glxgears
+        - branch: 24/x11-glxgears
           run: false
 
     steps:
