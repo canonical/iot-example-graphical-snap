@@ -59,6 +59,7 @@ jobs:
     - name: Build the snap
       uses: canonical/actions/build-snap@release
       with:
+        snapcraft-channel: 8.x
         review: ${{ matrix.review }}
 
     - name: Install prerequisites
