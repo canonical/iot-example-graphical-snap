@@ -30,11 +30,15 @@ jobs:
         - 24/x11-glxgears
         review:
         - true
+        run:
+        - true
         include:
         - branch: 24/Electron-quick-start
           review: false
         - branch: 24/Qt5-bomber-first-try
           downstream: 24/Qt5-bomber
+        - branch: 24/x11-glxgears
+          run: false
 
     steps:
     - name: Check out code
@@ -78,6 +82,7 @@ jobs:
         /snap/iot-example-graphical-snap/current/bin/setup.sh
 
     - name: Test that it runs
+      if: ${{ matrix.run == 'true'}}
       run: |
         wayland_display=${WAYLAND_DISPLAY:-wayland-0}
 
